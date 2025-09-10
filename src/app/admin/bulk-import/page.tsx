@@ -31,7 +31,7 @@ const serviceSchema = z.object({
     steps: z.string().min(10, 'Steps are required'),
     country: z.string().min(2, 'Country is required'),
     state: z.string().optional(),
-    status: z.enum(['published', 'disabled']).default('published'),
+    status: z.enum(['published', 'disabled']).optional(),
 });
 
 type ServiceData = z.infer<typeof serviceSchema>;
@@ -106,7 +106,8 @@ export default function BulkImportPage() {
             if (row.isValid) {
                 const serviceDocRef = doc(servicesCollection);
                 const serviceData = {
-                    ...(row.data as ServiceData),
+                    ...(row.data as Omit<ServiceData, 'status'>),
+                    status: row.data.status || 'published', // Default to 'published'
                     steps: (row.data.steps || '').split('\n').map(s => s.trim()).filter(Boolean),
                 };
                 batch.set(serviceDocRef, serviceData);
@@ -144,8 +145,7 @@ export default function BulkImportPage() {
         <CardHeader>
           <CardTitle>Bulk Import Services</CardTitle>
           <CardDescription>
-            Upload a CSV file with service data to add multiple links at once.
-            Ensure the CSV has headers: `title`, `link`, `categorySlug`, `description`, `steps`, `country`, `state`.
+            Upload a CSV file with service data. The header row must exactly match the following keys: `title`, `link`, `categorySlug`, `description`, `steps`, `country`, `state` (optional), `status` (optional, defaults to 'published'). For the `steps` column, separate each step with a newline character within the cell.
           </CardDescription>
         </CardHeader>
         <CardContent>
