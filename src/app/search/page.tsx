@@ -10,19 +10,30 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { serviceConverter, type Service } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
+import { COUNTRIES } from '@/lib/countries';
 
 function SearchResults() {
   const searchParams = useSearchParams();
   const queryParam = searchParams.get('q');
+  const country = searchParams.get('country') || 'AU';
+  const state = searchParams.get('state');
+
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchServices() {
         setLoading(true);
+        const conditions = [
+            where('status', '==', 'published'),
+            where('country', '==', country)
+        ];
+        if (state) {
+            conditions.push(where('state', '==', state));
+        }
         const servicesQuery = query(
             collection(db, 'services'),
-            where('status', '==', 'published')
+            ...conditions
         ).withConverter(serviceConverter);
 
         const servicesSnapshot = await getDocs(servicesQuery);
@@ -30,7 +41,7 @@ function SearchResults() {
         setLoading(false);
     }
     fetchServices();
-  }, [])
+  }, [country, state])
 
   const filteredServices = queryParam
     ? services.filter(
@@ -38,16 +49,22 @@ function SearchResults() {
           service.title.toLowerCase().includes(queryParam.toLowerCase()) ||
           service.description.toLowerCase().includes(queryParam.toLowerCase())
       )
-    : [];
+    : services;
+
+  const countryData = COUNTRIES.find(c => c.code === country);
+  const stateData = countryData?.states.find(s => s.code === state);
+  const locationName = stateData ? `${stateData.name}, ${countryData?.name}` : countryData?.name;
+
 
   return (
     <>
       <Header />
       <main className="flex-1">
         <div className="container mx-auto px-4 py-8 md:py-16">
-          <div className="max-w-3xl mx-auto mb-12">
+          <div className="max-w-3xl mx-auto mb-8">
             <SearchBar />
           </div>
+            {locationName && <p className="text-muted-foreground text-center mb-8">Showing services for {locationName}</p>}
 
           {loading ? (
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -69,17 +86,16 @@ function SearchResults() {
                 <div className="text-center py-16 bg-card rounded-lg shadow-sm">
                   <p className="text-lg font-medium">No results found.</p>
                   <p className="text-muted-foreground mt-2">
-                    Try searching for something else.
+                    Try searching for something else in the selected region.
                   </p>
                 </div>
               )}
             </>
           ) : (
-            <div className="text-center py-16 bg-card rounded-lg shadow-sm">
-              <p className="text-lg font-medium">Search for a service</p>
-              <p className="text-muted-foreground mt-2">
-                Use the search bar above to find guides for essential services.
-              </p>
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {services.map((service) => (
+                <LinkCard key={service.id} service={service} />
+                ))}
             </div>
           )}
         </div>

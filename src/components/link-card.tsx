@@ -15,8 +15,10 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { Service } from '@/lib/data';
+import { COUNTRIES } from '@/lib/countries';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { ReportDialog } from './report-dialog';
@@ -28,6 +30,10 @@ interface LinkCardProps {
 export function LinkCard({ service }: LinkCardProps) {
   const { toast } = useToast();
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+
+  const countryData = COUNTRIES.find(c => c.code === service.country);
+  const stateData = countryData?.states.find(s => s.code === service.state);
+  const location = stateData ? `${stateData.name}, ${countryData?.name}` : countryData?.name;
 
 
   const handleCopyLink = () => {
@@ -62,12 +68,15 @@ export function LinkCard({ service }: LinkCardProps) {
         setIsOpen={setIsReportDialogOpen} 
         service={service} 
       />
-      <Card>
+      <Card className="flex flex-col">
         <CardHeader>
-          <CardTitle className="font-headline text-xl">{service.title}</CardTitle>
+          <div className="flex justify-between items-start">
+             <CardTitle className="font-headline text-xl flex-1 pr-4">{service.title}</CardTitle>
+             {location && <Badge variant="secondary">{location}</Badge>}
+          </div>
           <CardDescription>{service.description}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-grow">
           <Accordion type="single" collapsible>
             <AccordionItem value="item-1">
               <AccordionTrigger className="text-base">How to do it:</AccordionTrigger>
