@@ -6,7 +6,7 @@ import { useAuth } from '@/context/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // IMPORTANT: Replace with your actual admin User ID from Firebase Auth
-const ADMIN_UID = "YOUR_ADMIN_UID_HERE"; 
+const ADMIN_UID = "Gz2nLtgMrchgprKNancZmSa5NQl1"; 
 
 const withAuth = <P extends object>(Component: React.ComponentType<P>) => {
   const AuthComponent = (props: P) => {

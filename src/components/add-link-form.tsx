@@ -33,7 +33,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { CATEGORIES } from '@/lib/data';
-import { Textarea } from '../ui/textarea';
+import { Textarea } from '@/components/ui/textarea';
 
 const formSchema = z.object({
   title: z.string().min(5, { message: "Please enter a descriptive title."}),
@@ -76,15 +76,15 @@ export function AddLinkForm() {
   };
   
   return (
-    <Card>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-            <CardHeader>
-                <CardTitle>Suggest a New Link</CardTitle>
-                <CardDescription>
-                Fill out the form below to recommend a new service.
-                </CardDescription>
-            </CardHeader>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <Card>
+          <CardHeader>
+              <CardTitle>Suggest a New Link</CardTitle>
+              <CardDescription>
+              Fill out the form below to recommend a new service.
+              </CardDescription>
+          </CardHeader>
           <CardContent className="space-y-4">
             <FormField
               control={form.control}
@@ -117,7 +117,7 @@ export function AddLinkForm() {
                     />
                   </FormControl>
                   <FormMessage />
-                </F_ormItem>
+                </FormItem>
               )}
             />
              <FormField
@@ -187,8 +187,8 @@ export function AddLinkForm() {
               {isLoading ? 'Submitting...' : 'Submit for Review'}
             </Button>
           </CardFooter>
-        </form>
-      </Form>
-    </Card>
+        </Card>
+      </form>
+    </Form>
   );
 }
