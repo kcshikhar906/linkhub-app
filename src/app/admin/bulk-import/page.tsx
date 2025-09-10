@@ -18,6 +18,9 @@ import { z } from 'zod';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { db } from '@/lib/firebase';
+import { collection, doc, writeBatch } from 'firebase/firestore';
+import { serviceConverter } from '@/lib/data';
 
 
 const serviceSchema = z.object({
@@ -89,11 +92,46 @@ export default function BulkImportPage() {
   };
 
   const handleSave = async () => {
+    if (!allRowsValid) {
+        toast({ variant: 'destructive', title: 'Invalid Data', description: 'Cannot save data with errors.'});
+        return;
+    }
+
     setIsSaving(true);
-    toast({ title: 'Saving in Progress...', description: 'This feature is not yet implemented.' });
-    // In the next step, we'll implement the Firestore batch write here.
-    // For now, we'll just simulate a delay.
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+        const batch = writeBatch(db);
+        const servicesCollection = collection(db, 'services').withConverter(serviceConverter);
+
+        parsedData.forEach(row => {
+            if (row.isValid) {
+                const serviceDocRef = doc(servicesCollection);
+                const serviceData = {
+                    ...(row.data as ServiceData),
+                    steps: (row.data.steps || '').split('\n').map(s => s.trim()).filter(Boolean),
+                };
+                batch.set(serviceDocRef, serviceData);
+            }
+        });
+
+        await batch.commit();
+
+        toast({
+            title: 'Success!',
+            description: `${parsedData.length} services have been imported successfully.`,
+        });
+        // Reset state
+        setFile(null);
+        setParsedData([]);
+
+    } catch (error) {
+        console.error("Error saving to Firestore:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Save Failed',
+            description: 'An error occurred while saving the data to the database.',
+        });
+    }
+
     setIsSaving(false);
   }
 
