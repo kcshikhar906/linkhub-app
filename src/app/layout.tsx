@@ -36,15 +36,13 @@ export default function RootLayout({
       </head>
       <body
         className={cn(
-          'min-h-screen bg-background font-body antialiased',
-          'flex flex-col'
+          'min-h-screen bg-background font-body antialiased'
         )}
       >
         <AuthProvider>
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
-          <Toaster />
+            {/* The children here will be either the public site with its own layout, or the admin panel with its own layout */}
+            {children}
+            <Toaster />
         </AuthProvider>
       </body>
     </html>

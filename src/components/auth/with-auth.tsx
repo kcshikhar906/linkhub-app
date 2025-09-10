@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from 'next/navigation';
@@ -14,24 +15,30 @@ const withAuth = <P extends object>(Component: React.ComponentType<P>) => {
     const router = useRouter();
 
     useEffect(() => {
-      if (!loading && (!user || user.uid !== ADMIN_UID)) {
-        router.push('/login');
+      if (!loading) {
+        if (!user) {
+          router.push('/login');
+        } else if (user.uid !== ADMIN_UID) {
+          // If the user is logged in but not an admin, send them to the homepage.
+          router.push('/');
+        }
       }
     }, [user, loading, router]);
 
+    // Show a loading skeleton while checking auth status
     if (loading || !user || user.uid !== ADMIN_UID) {
        return (
-         <div className="container mx-auto p-4">
-            <Skeleton className="h-12 w-1/2 mb-8" />
+         <div className="flex h-screen w-full items-center justify-center">
             <div className="space-y-4">
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-24 w-full" />
+              <p className="text-center text-muted-foreground">Verifying access...</p>
+              <Skeleton className="h-12 w-64" />
+              <Skeleton className="h-24 w-64" />
             </div>
          </div>
        )
     }
 
+    // If authorized, render the component
     return <Component {...props} />;
   };
 

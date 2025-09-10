@@ -3,6 +3,8 @@ import { CATEGORIES, SERVICES } from '@/lib/data';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { MountainSnow } from 'lucide-react';
+import { Header } from '@/components/layout/header';
+import { Footer } from '@/components/layout/footer';
 
 export const metadata: Metadata = {
   title: 'For the Nepalese Community',
@@ -19,6 +21,9 @@ export default function NepalPage() {
   const services = SERVICES.filter((service) => service.categorySlug === 'nepal-specific');
 
   return (
+   <>
+    <Header />
+    <main className="flex-1">
     <div className="container mx-auto px-4 py-8 md:py-16">
       <div className="flex items-center gap-4 mb-8">
         <MountainSnow className="h-10 w-10 text-accent" />
@@ -43,5 +48,8 @@ export default function NepalPage() {
         </div>
       )}
     </div>
+    </main>
+    <Footer />
+   </>
   );
 }

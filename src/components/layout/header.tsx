@@ -19,7 +19,6 @@ const navLinks = [
   { href: '/categories', label: 'All Categories' },
   { href: '/nepal', label: 'For Nepal' },
   { href: '/about', label: 'About' },
-  { href: '/admin', label: 'Admin', icon: Shield, admin: true },
 ];
 
 export function Header() {
@@ -39,29 +38,37 @@ export function Header() {
     router.push('/');
   };
 
-  const NavLink = ({ href, label, icon: Icon, admin = false }: { href: string; label:string; icon?: React.ElementType, admin?: boolean }) => {
+  const NavLink = ({ href, label }: { href: string; label:string; }) => {
     const isActive =
       href === '/' ? pathname === href : pathname.startsWith(href);
     const isNepalLink = href === '/nepal';
     
-    if(admin && !user) return null;
-
     return (
       <Link
         href={href}
         className={cn(
           'text-sm font-medium transition-colors hover:text-primary flex items-center gap-2',
-          isActive ? (isNepalLink ? 'text-accent' : admin ? 'text-destructive' : 'text-primary') : 'text-muted-foreground',
-          isNepalLink && 'hover:text-accent',
-          admin && 'hover:text-destructive'
+          isActive ? (isNepalLink ? 'text-accent' : 'text-primary') : 'text-muted-foreground',
+          isNepalLink && 'hover:text-accent'
         )}
         onClick={() => setSheetOpen(false)}
       >
-        {Icon && <Icon className="h-4 w-4" />}
         {label}
       </Link>
     );
   };
+  
+  // Conditionally render admin link
+  const adminLink = user ? (
+    <Link
+      href="/admin"
+      className="text-sm font-medium transition-colors hover:text-primary flex items-center gap-2 text-primary"
+      onClick={() => setSheetOpen(false)}
+    >
+      <Shield className="h-4 w-4" />
+      Admin
+    </Link>
+  ) : null;
 
   const authButton = user ? (
     <Button onClick={handleLogout} variant="outline" size="sm">
@@ -72,7 +79,7 @@ export function Header() {
     <Button asChild variant="outline" size="sm">
       <Link href="/login">
         <LogIn className="h-4 w-4 mr-2" />
-        Login
+        Admin Login
       </Link>
     </Button>
   );
@@ -109,6 +116,7 @@ export function Header() {
                     {navLinks.map((link) => (
                       <NavLink key={link.href} {...link} />
                     ))}
+                    {adminLink}
                   </nav>
                   <div className="mt-8 pt-4 border-t">
                     {authButton}
@@ -133,6 +141,7 @@ export function Header() {
           {navLinks.map((link) => (
             <NavLink key={link.href} {...link} />
           ))}
+          {adminLink}
         </nav>
         <div className="flex flex-1 items-center justify-end gap-2">
             <Button variant="ghost" size="icon" asChild>
