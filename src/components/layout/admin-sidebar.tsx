@@ -11,6 +11,7 @@ import {
   LogOut,
   Home,
   Settings,
+  Layers,
 } from 'lucide-react';
 
 import {
@@ -27,6 +28,7 @@ import { cn } from '@/lib/utils';
 const adminNavLinks = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/manage-links', label: 'Manage Links', icon: Link2 },
+  { href: '/admin/manage-categories', label: 'Manage Categories', icon: Layers },
 ];
 
 export function AdminSidebar() {
@@ -111,3 +113,5 @@ export function AdminSidebar() {
     </TooltipProvider>
   );
 }
+
+    

@@ -11,7 +11,7 @@ import {
   Briefcase,
   Scale,
 } from 'lucide-react';
-import type { DocumentData, QueryDocumentSnapshot, Timestamp } from 'firebase/firestore';
+import type { DocumentData, QueryDocumentSnapshot, Timestamp, ServerTimestamp } from 'firebase/firestore';
 
 export type Service = {
   id: string;
@@ -43,15 +43,14 @@ export type ReportedLink = {
     id: string;
     serviceId: string;
     serviceTitle: string;
-    reportedAt: Timestamp;
+    reportedAt: Timestamp | ServerTimestamp;
     reporterEmail: string;
     reason: string;
     status: 'pending' | 'resolved';
 }
 
-// Helper to get Lucide icon component from string name
-export const getIcon = (name: string): LucideIcon => {
-  const icons: { [key: string]: LucideIcon } = {
+// Object of available icons
+export const ICONS: { [key: string]: LucideIcon } = {
     Plane,
     Landmark,
     HeartPulse,
@@ -62,8 +61,12 @@ export const getIcon = (name: string): LucideIcon => {
     Home,
     Briefcase,
     Scale,
-  };
-  return icons[name] || Home; // Return a default icon if not found
+};
+
+
+// Helper to get Lucide icon component from string name
+export const getIcon = (name: string): LucideIcon => {
+  return ICONS[name] || Home; // Return a default icon if not found
 };
 
 export const serviceConverter = {
@@ -134,11 +137,13 @@ export const submissionConverter = {
 export const reportConverter = {
     fromFirestore: (snapshot: QueryDocumentSnapshot): ReportedLink => {
         const data = snapshot.data();
+        // The reportedAt field might be a Timestamp or null if just sent
+        const reportedAt = data.reportedAt instanceof Timestamp ? data.reportedAt : new Timestamp(0,0);
         return {
             id: snapshot.id,
             serviceId: data.serviceId,
             serviceTitle: data.serviceTitle,
-            reportedAt: data.reportedAt,
+            reportedAt: reportedAt,
             reporterEmail: data.reporterEmail,
             reason: data.reason,
             status: data.status,
@@ -155,3 +160,5 @@ export const reportConverter = {
         };
     }
 }
+
+    

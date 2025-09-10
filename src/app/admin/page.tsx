@@ -18,11 +18,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, Check, Trash2, Loader2, FileClock } from 'lucide-react';
+import { ExternalLink, Check, Trash2, Loader2, PlusCircle, ArrowUpRight, Link as LinkIcon, Layers, FileClock, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, deleteDoc, setDoc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, doc, deleteDoc, setDoc, updateDoc, query, orderBy, getCountFromServer } from 'firebase/firestore';
 import {
   submissionConverter,
   type SubmittedLink,
@@ -31,6 +31,7 @@ import {
   type ReportedLink,
 } from '@/lib/data';
 import { formatDistanceToNow } from 'date-fns';
+import Link from 'next/link';
 
 function AdminPage() {
   const { user } = useAuth();
@@ -39,12 +40,42 @@ function AdminPage() {
   const [reports, setReports] = useState<ReportedLink[]>([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(true);
   const [loadingReports, setLoadingReports] = useState(true);
+  const [stats, setStats] = useState({ services: 0, categories: 0, submissions: 0, reports: 0});
+  const [loadingStats, setLoadingStats] = useState(true);
 
 
   useEffect(() => {
     if (!user) return;
     setLoadingSubmissions(true);
     setLoadingReports(true);
+    setLoadingStats(true);
+
+    const fetchStats = async () => {
+        try {
+            const servicesCol = collection(db, 'services');
+            const categoriesCol = collection(db, 'categories');
+            const submissionsCol = collection(db, 'submissions');
+            const reportsCol = query(collection(db, 'reports'), orderBy('status', 'asc'));
+
+            const servicesSnapshot = await getCountFromServer(servicesCol);
+            const categoriesSnapshot = await getCountFromServer(categoriesCol);
+            const submissionsSnapshot = await getCountFromServer(submissionsCol);
+            const reportsSnapshot = await getCountFromServer(reportsCol);
+
+            setStats({
+                services: servicesSnapshot.data().count,
+                categories: categoriesSnapshot.data().count,
+                submissions: submissionsSnapshot.data().count,
+                reports: reportsSnapshot.data().count
+            });
+        } catch (error) {
+            console.error("Error fetching stats:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch dashboard statistics.'})
+        }
+        setLoadingStats(false);
+    }
+
+    fetchStats();
 
     const submissionsQuery = query(collection(db, 'submissions'), orderBy('title'));
     const submissionsUnsubscribe = onSnapshot(submissionsQuery.withConverter(
@@ -65,7 +96,7 @@ function AdminPage() {
         submissionsUnsubscribe();
         reportsUnsubscribe();
     }
-  }, [user]);
+  }, [user, toast]);
 
   const handleApprove = async (submission: SubmittedLink) => {
     // Note: This is a simplified approval. A real app might have an AI step.
@@ -84,7 +115,7 @@ function AdminPage() {
 
         toast({
             title: 'Link Approved',
-            description: `"${submission.title}" has been published.`,
+            description: `"${submission.title}" has been published. Please review it in Manage Links.`,
         });
 
     } catch (error) {
@@ -134,13 +165,62 @@ function AdminPage() {
 
   return (
     <div className="grid gap-8">
-      <div className="flex items-center justify-between space-y-2">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">
-            Welcome back! Review and manage submissions and reports.
+            Welcome back! Here's an overview of your site.
           </p>
         </div>
+         <Button asChild>
+            <Link href="/admin/manage-links">
+                <PlusCircle className="mr-2"/>
+                Add New Link
+            </Link>
+        </Button>
+      </div>
+
+       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Services</CardTitle>
+                <LinkIcon className="h-4 w-4 text-muted-foreground"/>
+            </CardHeader>
+            <CardContent>
+                {loadingStats ? <Loader2 className="animate-spin" /> : <div className="text-2xl font-bold">{stats.services}</div>}
+                <p className="text-xs text-muted-foreground">Live on the site</p>
+            </CardContent>
+        </Card>
+         <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Categories</CardTitle>
+                <Layers className="h-4 w-4 text-muted-foreground"/>
+            </CardHeader>
+            <CardContent>
+                {loadingStats ? <Loader2 className="animate-spin" /> : <div className="text-2xl font-bold">{stats.categories}</div>}
+                 <p className="text-xs text-muted-foreground">Service categories</p>
+            </CardContent>
+        </Card>
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending Submissions</CardTitle>
+                <FileClock className="h-4 w-4 text-muted-foreground"/>
+            </CardHeader>
+            <CardContent>
+               {loadingStats ? <Loader2 className="animate-spin" /> : <div className="text-2xl font-bold">{stats.submissions}</div>}
+                 <p className="text-xs text-muted-foreground">Awaiting review</p>
+            </CardContent>
+        </Card>
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Reports</CardTitle>
+                <AlertCircle className="h-4 w-4 text-muted-foreground"/>
+            </CardHeader>
+            <CardContent>
+                {loadingStats ? <Loader2 className="animate-spin" /> : <div className="text-2xl font-bold">{stats.reports}</div>}
+                <p className="text-xs text-muted-foreground">Issues reported by users</p>
+            </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -266,3 +346,5 @@ function AdminPage() {
 }
 
 export default AdminPage;
+
+    
