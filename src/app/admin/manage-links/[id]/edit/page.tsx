@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -64,14 +65,15 @@ export default function EditLinkPage({ params }: EditLinkPageProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true);
+  const { id } = params;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
   });
 
-  const fetchService = useCallback(async (id: string) => {
+  const fetchService = useCallback(async (serviceId: string) => {
       try {
-        const serviceRef = doc(db, 'services', id).withConverter(serviceConverter);
+        const serviceRef = doc(db, 'services', serviceId).withConverter(serviceConverter);
         const serviceSnap = await getDoc(serviceRef);
 
         if (!serviceSnap.exists()) {
@@ -95,7 +97,7 @@ export default function EditLinkPage({ params }: EditLinkPageProps) {
 
 
   useEffect(() => {
-    fetchService(params.id);
+    fetchService(id);
 
     const fetchCategories = onSnapshot(
       query(collection(db, 'categories'), orderBy('name')),
@@ -111,7 +113,7 @@ export default function EditLinkPage({ params }: EditLinkPageProps) {
     return () => {
       fetchCategories();
     };
-  }, [params.id, fetchService]);
+  }, [id, fetchService]);
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setIsLoading(true);
