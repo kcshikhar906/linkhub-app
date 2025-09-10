@@ -13,6 +13,7 @@ import { useAuth } from '@/context/auth-context';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { LocationSelector } from './location-selector';
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -112,6 +113,9 @@ export function Header() {
                     <LinkHubLogo className="h-6 w-6 text-primary" />
                     <span className="font-headline text-lg">LinkHub</span>
                   </Link>
+                  <div className='mb-8'>
+                    <LocationSelector onValueChange={() => setSheetOpen(false)} />
+                  </div>
                   <nav className="flex flex-col gap-6">
                     {navLinks.map((link) => (
                       <NavLink key={link.href} {...link} />
@@ -143,7 +147,8 @@ export function Header() {
           ))}
           {adminLink}
         </nav>
-        <div className="flex flex-1 items-center justify-end gap-2">
+        <div className="flex flex-1 items-center justify-end gap-4">
+            <LocationSelector />
             <Button variant="ghost" size="icon" asChild>
                 <Link href="/search">
                     <Search className="h-5 w-5" />

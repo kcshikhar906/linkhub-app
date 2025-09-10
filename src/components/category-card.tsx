@@ -1,19 +1,23 @@
+'use client';
+
 import Link from 'next/link';
 import type { Category } from '@/lib/data';
 import { Card, CardContent } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
 import { getIcon } from '@/lib/data';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
 interface CategoryCardProps {
   category: Category;
 }
 
-export function CategoryCard({ category }: CategoryCardProps) {
+function CategoryCardLink({ category }: CategoryCardProps) {
+  const searchParams = useSearchParams();
   const Icon = getIcon(category.iconName);
 
   return (
-    <Link
-      href={`/categories/${category.slug}`}
+     <Link
+      href={{ pathname: `/categories/${category.slug}`, query: searchParams.toString() }}
       className="group block"
       aria-label={`View services in ${category.name}`}
     >
@@ -26,5 +30,14 @@ export function CategoryCard({ category }: CategoryCardProps) {
         </CardContent>
       </Card>
     </Link>
-  );
+  )
+}
+
+
+export function CategoryCard(props: CategoryCardProps) {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CategoryCardLink {...props} />
+    </Suspense>
+  )
 }

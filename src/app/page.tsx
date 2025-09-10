@@ -7,40 +7,46 @@ import { Footer } from '@/components/layout/footer';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { type Category, categoryConverter, type Service, serviceConverter } from '@/lib/data';
+import { COUNTRIES } from '@/lib/countries';
 
-async function getCategories(country: string, state?: string) {
-    const servicesQuery = state 
-    ? query(collection(db, 'services'), where('country', '==', country), where('state', '==', state), where('status', '==', 'published'))
-    : query(collection(db, 'services'), where('country', '==', country), where('status', '==', 'published'));
+
+async function getServicesForLocation(country: string, state?: string) {
+    const conditions = [
+        where('country', '==', country), 
+        where('status', '==', 'published')
+    ];
+    if (state) {
+        conditions.push(where('state', '==', state));
+    }
     
+    const servicesQuery = query(collection(db, 'services'), ...conditions);
     const servicesSnapshot = await getDocs(servicesQuery.withConverter(serviceConverter));
-    const services = servicesSnapshot.docs.map(doc => doc.data());
-    
-    // If there are no services for the selected location, we can't show any categories for it.
-    if (services.length === 0) return [];
+    return servicesSnapshot.docs.map(doc => doc.data());
+}
 
-    // Get the unique slugs from the services available in the location
-    const categorySlugs = [...new Set(services.map(service => service.categorySlug))];
-    
-    if (categorySlugs.length === 0) return [];
-
-    // Fetch the full category details for those slugs
-    // Firestore 'in' queries are limited to 30 items. If you have more than 30 categories with services, this will need refactoring.
-    const categoriesQuery = query(collection(db, 'categories'), where('slug', 'in', categorySlugs));
+async function getAllCategories() {
+    const categoriesQuery = query(collection(db, 'categories'));
     const categoriesSnapshot = await getDocs(categoriesQuery.withConverter(categoryConverter));
-    
     return categoriesSnapshot.docs.map(doc => doc.data());
 }
 
 
 export default async function Home({ searchParams }: { searchParams: { country?: string; state?: string } }) {
   // Default to Australia if no country is provided
-  const country = searchParams.country || 'AU';
-  const state = searchParams.state;
+  const countryCode = searchParams.country || 'AU';
+  const stateCode = searchParams.state;
 
-  const categories = await getCategories(country, state);
-
-  const countryName = country === 'AU' ? 'Australia' : 'the selected region'; // Simple mapping for now
+  const allCategories = await getAllCategories();
+  const locationServices = await getServicesForLocation(countryCode, stateCode);
+  
+  // Get the slugs of categories that have services in the selected location
+  const availableCategorySlugs = new Set(locationServices.map(service => service.categorySlug));
+  
+  // Filter the main category list
+  const categories = allCategories.filter(category => availableCategorySlugs.has(category.slug));
+  
+  const countryData = COUNTRIES.find(c => c.code === countryCode);
+  const countryName = countryData ? countryData.name : 'the selected region';
 
   return (
    <>
@@ -65,7 +71,7 @@ export default async function Home({ searchParams }: { searchParams: { country?:
               Browse by Category
             </h2>
             <Button asChild variant="link" className="text-primary">
-              <Link href="/categories">View All</Link>
+              <Link href={{ pathname: '/categories', query: searchParams }}>View All</Link>
             </Button>
           </div>
         
@@ -77,7 +83,7 @@ export default async function Home({ searchParams }: { searchParams: { country?:
             {categories.length === 0 && (
                 <div className="text-center py-16 bg-card rounded-lg shadow-sm">
                     <p className="text-muted-foreground">
-                        There are no services listed for the selected region yet.
+                        There are no services listed for {countryName} yet.
                     </p>
                 </div>
             )}
