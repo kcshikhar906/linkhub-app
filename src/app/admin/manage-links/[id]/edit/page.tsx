@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -107,9 +108,7 @@ export default function EditLinkPage({ params }: EditLinkPageProps) {
 
 
   useEffect(() => {
-    if (params.id) {
-        fetchService(params.id);
-    }
+    fetchService(params.id);
 
     const fetchCategories = onSnapshot(
       query(collection(db, 'categories'), orderBy('name')),
@@ -283,12 +282,6 @@ export default function EditLinkPage({ params }: EditLinkPageProps) {
               </div>
             </CardContent>
           </Card>
-          <div className="flex items-center justify-center gap-2 md:hidden mt-4">
-              <Button type="submit" disabled={isLoading} className="w-full">
-                  {isLoading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />}
-                  {isLoading ? 'Saving...' : 'Save Changes'}
-              </Button>
-            </div>
         </form>
       </div>
     </div>
