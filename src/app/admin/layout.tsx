@@ -1,12 +1,18 @@
+'use client';
+
 import type { Metadata } from 'next';
 import { AuthProvider } from '@/context/auth-context';
 import withAuth from '@/components/auth/with-auth';
 import { AdminSidebar } from '@/components/layout/admin-sidebar';
 
+/*
 export const metadata: Metadata = {
   title: 'Admin',
   description: 'Admin dashboard for LinkHub.',
 };
+*/
+// Metadata export is not allowed in a client component.
+// We can set the title in the RootLayout or individual pages if needed.
 
 function AdminLayout({
   children,
