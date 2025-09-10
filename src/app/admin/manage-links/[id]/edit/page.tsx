@@ -108,7 +108,10 @@ export default function EditLinkPage({ params }: EditLinkPageProps) {
 
 
   useEffect(() => {
-    fetchService(params.id);
+    const serviceId = params.id;
+    if (serviceId) {
+        fetchService(serviceId);
+    }
 
     const fetchCategories = onSnapshot(
       query(collection(db, 'categories'), orderBy('name')),
