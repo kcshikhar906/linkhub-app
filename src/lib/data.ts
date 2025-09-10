@@ -10,6 +10,12 @@ import {
   Home,
   Briefcase,
   Scale,
+  Users,
+  Phone,
+  Siren,
+  Building,
+  HeartHandshake,
+  ShieldCheck,
 } from 'lucide-react';
 import { Timestamp, type DocumentData, type QueryDocumentSnapshot, type ServerTimestamp } from 'firebase/firestore';
 
@@ -63,6 +69,12 @@ export const ICONS: { [key: string]: LucideIcon } = {
     Home,
     Briefcase,
     Scale,
+    Users,
+    Phone,
+    Siren,
+    Building,
+    HeartHandshake,
+    ShieldCheck,
 };
 
 
