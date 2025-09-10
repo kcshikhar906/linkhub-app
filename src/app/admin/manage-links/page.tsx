@@ -26,7 +26,7 @@ import {
   serviceConverter,
 } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, PlusCircle, Trash2, Loader2 } from 'lucide-react';
+import { ExternalLink, PlusCircle, Trash2, Loader2, EyeOff, Eye } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -48,6 +48,7 @@ import {
   doc,
   query,
   orderBy,
+  updateDoc,
 } from 'firebase/firestore';
 
 const formSchema = z.object({
@@ -107,6 +108,7 @@ export default function ManageLinksPage() {
       const serviceData = {
         ...data,
         steps: data.steps.split('\n').filter((step) => step.trim() !== ''),
+        status: 'published' as const,
       };
       const servicesCol = collection(db, 'services').withConverter(
         serviceConverter
@@ -142,6 +144,26 @@ export default function ManageLinksPage() {
         variant: 'destructive',
         title: 'Error',
         description: 'Failed to delete service.',
+      });
+    }
+  }
+
+  const handleToggleStatus = async (service: Service) => {
+    const newStatus = service.status === 'published' ? 'disabled' : 'published';
+    const action = newStatus === 'published' ? 'Published' : 'Disabled';
+    try {
+      const serviceRef = doc(db, 'services', service.id);
+      await updateDoc(serviceRef, { status: newStatus });
+      toast({
+        title: `Service ${action}`,
+        description: `"${service.title}" is now ${newStatus}.`,
+      });
+    } catch (error) {
+      console.error(`Error ${action.toLowerCase()}ing service:`, error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: `Failed to update service status.`,
       });
     }
   }
@@ -243,7 +265,7 @@ export default function ManageLinksPage() {
                 <TableRow>
                   <TableHead>Title</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead className="hidden md:table-cell">Link</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>
                     <span className="sr-only">Actions</span>
                   </TableHead>
@@ -258,21 +280,14 @@ export default function ManageLinksPage() {
                     <TableCell>
                       <Badge variant="secondary">{service.categorySlug}</Badge>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <a
-                        href={service.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:underline"
-                      >
-                        {service.link.substring(0, 40)}...
-                      </a>
+                    <TableCell>
+                        <Badge variant={service.status === 'published' ? 'default' : 'secondary'}>{service.status}</Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2 justify-end">
-                        {/* <Button variant="outline" size="sm">
-                          Edit
-                        </Button> */}
+                        <Button variant="outline" size="icon" onClick={() => handleToggleStatus(service)}>
+                            {service.status === 'published' ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}
+                        </Button>
                         <Button variant="destructive" size="icon" onClick={() => handleDelete(service.id, service.title)}>
                           <Trash2  className="h-4 w-4"/>
                         </Button>

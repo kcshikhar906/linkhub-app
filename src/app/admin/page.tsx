@@ -17,12 +17,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Check, Trash2, Loader2, PlusCircle, ArrowUpRight, Link as LinkIcon, Layers, FileClock, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, deleteDoc, setDoc, updateDoc, query, orderBy, getCountFromServer } from 'firebase/firestore';
+import { collection, onSnapshot, doc, deleteDoc, setDoc, updateDoc, query, orderBy, getCountFromServer, where } from 'firebase/firestore';
 import {
   submissionConverter,
   type SubmittedLink,
@@ -33,11 +39,18 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 
+type GroupedReports = {
+  [key: string]: {
+    serviceTitle: string;
+    reports: ReportedLink[];
+  };
+}
+
 function AdminPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [submissions, setSubmissions] = useState<SubmittedLink[]>([]);
-  const [reports, setReports] = useState<ReportedLink[]>([]);
+  const [groupedReports, setGroupedReports] = useState<GroupedReports>({});
   const [loadingSubmissions, setLoadingSubmissions] = useState(true);
   const [loadingReports, setLoadingReports] = useState(true);
   const [stats, setStats] = useState({ services: 0, categories: 0, submissions: 0, reports: 0});
@@ -55,7 +68,7 @@ function AdminPage() {
             const servicesCol = collection(db, 'services');
             const categoriesCol = collection(db, 'categories');
             const submissionsCol = collection(db, 'submissions');
-            const reportsCol = query(collection(db, 'reports'), orderBy('status', 'asc'));
+            const reportsCol = query(collection(db, 'reports'), where('status', '==', 'pending'));
 
             const servicesSnapshot = await getCountFromServer(servicesCol);
             const categoriesSnapshot = await getCountFromServer(categoriesCol);
@@ -87,7 +100,16 @@ function AdminPage() {
     
     const reportsQuery = query(collection(db, 'reports'), orderBy('reportedAt', 'desc'));
     const reportsUnsubscribe = onSnapshot(reportsQuery.withConverter(reportConverter), (snapshot) => {
-        setReports(snapshot.docs.map(doc => doc.data()));
+        const reports = snapshot.docs.map(doc => doc.data());
+        const grouped = reports.reduce((acc, report) => {
+          const { serviceId, serviceTitle } = report;
+          if (!acc[serviceId]) {
+            acc[serviceId] = { serviceTitle, reports: [] };
+          }
+          acc[serviceId].reports.push(report);
+          return acc;
+        }, {} as GroupedReports)
+        setGroupedReports(grouped);
         setLoadingReports(false);
     });
 
@@ -99,13 +121,13 @@ function AdminPage() {
   }, [user, toast]);
 
   const handleApprove = async (submission: SubmittedLink) => {
-    // Note: This is a simplified approval. A real app might have an AI step.
     const serviceData = {
         title: submission.title,
         description: 'Please edit this description.',
         steps: ['Step 1', 'Step 2'],
         link: submission.url,
-        categorySlug: submission.categorySlug
+        categorySlug: submission.categorySlug,
+        status: 'published' as const
     };
 
     try {
@@ -297,47 +319,63 @@ function AdminPage() {
           <CardTitle>Reported Links</CardTitle>
           <CardDescription>
             {loadingReports ? 'Loading reports...' : 
-                reports.length > 0
+                Object.keys(groupedReports).length > 0
               ? 'Review links that have been reported by users.'
               : 'There are no active reports.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {loadingReports ? <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground"/></div> :
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Service Title</TableHead>
-                <TableHead>Reason</TableHead>
-                <TableHead>Reported</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {reports.map((report) => (
-                <TableRow key={report.id}>
-                  <TableCell className="font-medium">{report.serviceTitle}</TableCell>
-                  <TableCell className="text-muted-foreground max-w-sm">{report.reason}</TableCell>
-                  <TableCell>{formatDistanceToNow(report.reportedAt.toDate(), { addSuffix: true })}</TableCell>
-                   <TableCell>
-                      <Badge variant={report.status === 'pending' ? 'destructive' : 'secondary'}>{report.status}</Badge>
-                    </TableCell>
-                  <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleResolveReport(report.id)}
-                        disabled={report.status === 'resolved'}
-                      >
-                        <Check className="h-4 w-4 mr-2" />
-                        Mark as Resolved
-                      </Button>
-                  </TableCell>
-                </TableRow>
+            <Accordion type="multiple" className="w-full">
+              {Object.entries(groupedReports).map(([serviceId, group]) => (
+                <AccordionItem value={serviceId} key={serviceId}>
+                  <AccordionTrigger>
+                    <div className='flex items-center gap-4'>
+                      <span className='font-medium'>{group.serviceTitle}</span>
+                      <Badge variant="destructive">{group.reports.filter(r => r.status === 'pending').length} pending</Badge>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Reason</TableHead>
+                          <TableHead>Reporter</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {group.reports.map((report) => (
+                          <TableRow key={report.id}>
+                            <TableCell className='max-w-xs'>{report.reason}</TableCell>
+                            <TableCell>{report.reporterEmail}</TableCell>
+                            <TableCell>{formatDistanceToNow(report.reportedAt.toDate(), { addSuffix: true })}</TableCell>
+                            <TableCell>
+                              <Badge variant={report.status === 'pending' ? 'destructive' : 'secondary'}>
+                                {report.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className='text-right'>
+                               <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleResolveReport(report.id)}
+                                  disabled={report.status === 'resolved'}
+                                >
+                                  <Check className="h-4 w-4 mr-2" />
+                                  Resolve
+                                </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </AccordionContent>
+                </AccordionItem>
               ))}
-            </TableBody>
-          </Table>
+            </Accordion>
           }
         </CardContent>
       </Card>
@@ -346,5 +384,3 @@ function AdminPage() {
 }
 
 export default AdminPage;
-
-    

@@ -6,33 +6,37 @@ import { SearchBar } from '@/components/search-bar';
 import { Suspense, useEffect, useState } from 'react';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { serviceConverter, type Service } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function SearchResults() {
   const searchParams = useSearchParams();
-  const query = searchParams.get('q');
+  const queryParam = searchParams.get('q');
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchServices() {
         setLoading(true);
-        const servicesCol = collection(db, 'services').withConverter(serviceConverter);
-        const servicesSnapshot = await getDocs(servicesCol);
+        const servicesQuery = query(
+            collection(db, 'services'),
+            where('status', '==', 'published')
+        ).withConverter(serviceConverter);
+
+        const servicesSnapshot = await getDocs(servicesQuery);
         setServices(servicesSnapshot.docs.map(doc => doc.data()));
         setLoading(false);
     }
     fetchServices();
   }, [])
 
-  const filteredServices = query
+  const filteredServices = queryParam
     ? services.filter(
         (service) =>
-          service.title.toLowerCase().includes(query.toLowerCase()) ||
-          service.description.toLowerCase().includes(query.toLowerCase())
+          service.title.toLowerCase().includes(queryParam.toLowerCase()) ||
+          service.description.toLowerCase().includes(queryParam.toLowerCase())
       )
     : [];
 
@@ -50,10 +54,10 @@ function SearchResults() {
                 <Skeleton className="h-64 w-full" />
                 <Skeleton className="h-64 w-full" />
             </div>
-          ) : query ? (
+          ) : queryParam ? (
             <>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-6 font-headline">
-                Results for "{query}"
+                Results for "{queryParam}"
               </h1>
               {filteredServices.length > 0 ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

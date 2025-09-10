@@ -23,7 +23,7 @@ async function getNepalCategory(): Promise<Category | null> {
 }
 
 async function getNepalServices(): Promise<Service[]> {
-    const q = query(collection(db, "services"), where("categorySlug", "==", 'nepal-specific'));
+    const q = query(collection(db, "services"), where("categorySlug", "==", 'nepal-specific'), where("status", "==", "published"));
     const querySnapshot = await getDocs(q.withConverter(serviceConverter));
     return querySnapshot.docs.map(doc => doc.data());
 }

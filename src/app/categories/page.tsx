@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query, where } from 'firebase/firestore';
 import { type Category, type Service, categoryConverter, serviceConverter, getIcon } from '@/lib/data';
 
 export const metadata: Metadata = {
@@ -17,7 +17,7 @@ async function getCategories(): Promise<Category[]> {
 }
 
 async function getServices(): Promise<Service[]> {
-  const q = query(collection(db, 'services'), orderBy('title'));
+  const q = query(collection(db, 'services'), where('status', '==', 'published'), orderBy('title'));
   const snapshot = await getDocs(q.withConverter(serviceConverter));
   return snapshot.docs.map(doc => doc.data());
 }

@@ -21,6 +21,7 @@ export type Service = {
   steps: string[];
   link: string;
   categorySlug: string;
+  status: 'published' | 'disabled';
 };
 
 export type Category = {
@@ -79,7 +80,8 @@ export const serviceConverter = {
             description: data.description,
             steps: data.steps,
             link: data.link,
-            categorySlug: data.categorySlug
+            categorySlug: data.categorySlug,
+            status: data.status || 'published' // Default to published
         };
     },
     toFirestore: (service: Omit<Service, 'id'>): DocumentData => {
@@ -88,7 +90,8 @@ export const serviceConverter = {
             description: service.description,
             steps: service.steps,
             link: service.link,
-            categorySlug: service.categorySlug
+            categorySlug: service.categorySlug,
+            status: service.status
         };
     }
 };
@@ -161,5 +164,3 @@ export const reportConverter = {
         };
     }
 }
-
-    

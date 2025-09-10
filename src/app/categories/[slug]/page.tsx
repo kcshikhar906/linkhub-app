@@ -23,7 +23,7 @@ async function getCategory(slug: string): Promise<Category | null> {
 }
 
 async function getServices(slug: string): Promise<Service[]> {
-    const q = query(collection(db, "services"), where("categorySlug", "==", slug));
+    const q = query(collection(db, "services"), where("categorySlug", "==", slug), where("status", "==", "published"));
     const querySnapshot = await getDocs(q.withConverter(serviceConverter));
     return querySnapshot.docs.map(doc => doc.data());
 }
