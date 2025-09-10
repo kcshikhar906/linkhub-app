@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -44,12 +45,13 @@ export function LocationSelector({ onValueChange, className }: LocationSelectorP
       setSelectedCountry(value || 'AU');
       setSelectedState(null);
     } else if (type === 'state') {
-        if (value) {
+        if (value && value !== 'ALL_STATES') {
             newParams.set('state', value);
+             setSelectedState(value);
         } else {
             newParams.delete('state');
+            setSelectedState(null);
         }
-        setSelectedState(value);
     }
     
     // Don't append location to admin or nepal-specific pages
@@ -91,7 +93,7 @@ export function LocationSelector({ onValueChange, className }: LocationSelectorP
             <SelectValue placeholder="All States" />
             </SelectTrigger>
             <SelectContent>
-                <SelectItem value="">All States</SelectItem>
+                <SelectItem value="ALL_STATES">All States</SelectItem>
                 {states.map((s) => (
                     <SelectItem key={s.code} value={s.code}>
                         {s.name}
