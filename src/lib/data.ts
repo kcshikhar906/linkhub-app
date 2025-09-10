@@ -11,8 +11,8 @@ import {
   Briefcase,
   Scale,
 } from 'lucide-react';
-import { Timestamp } from 'firebase/firestore';
-import type { DocumentData, QueryDocumentSnapshot, ServerTimestamp } from 'firebase/firestore';
+import { Timestamp, type DocumentData, type QueryDocumentSnapshot, type ServerTimestamp } from 'firebase/firestore';
+
 
 export type Service = {
   id: string;
@@ -84,15 +84,17 @@ export const serviceConverter = {
             status: data.status || 'published' // Default to published
         };
     },
-    toFirestore: (service: Omit<Service, 'id'>): DocumentData => {
-        return {
-            title: service.title,
-            description: service.description,
-            steps: service.steps,
-            link: service.link,
-            categorySlug: service.categorySlug,
-            status: service.status
-        };
+    toFirestore: (service: Partial<Service>): DocumentData => {
+        // Return a new object with only the fields that are not undefined.
+        // This is crucial for updates, so we don't overwrite fields we don't intend to.
+        const data: DocumentData = {};
+        if (service.title !== undefined) data.title = service.title;
+        if (service.description !== undefined) data.description = service.description;
+        if (service.steps !== undefined) data.steps = service.steps;
+        if (service.link !== undefined) data.link = service.link;
+        if (service.categorySlug !== undefined) data.categorySlug = service.categorySlug;
+        if (service.status !== undefined) data.status = service.status;
+        return data;
     }
 };
 
@@ -153,14 +155,9 @@ export const reportConverter = {
             status: data.status,
         };
     },
-    toFirestore: (report: Omit<ReportedLink, 'id'>): DocumentData => {
+    toFirestore: (report: Partial<Omit<ReportedLink, 'id'>>): DocumentData => {
         return {
-            serviceId: report.serviceId,
-            serviceTitle: report.serviceTitle,
-            reportedAt: report.reportedAt,
-            reporterEmail: report.reporterEmail,
-            reason: report.reason,
-            status: report.status,
+            ...report,
         };
     }
 }

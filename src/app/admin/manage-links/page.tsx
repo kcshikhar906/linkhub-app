@@ -26,7 +26,7 @@ import {
   serviceConverter,
 } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, PlusCircle, Trash2, Loader2, EyeOff, Eye } from 'lucide-react';
+import { ExternalLink, PlusCircle, Trash2, Loader2, EyeOff, Eye, Edit } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -50,6 +50,7 @@ import {
   orderBy,
   updateDoc,
 } from 'firebase/firestore';
+import Link from 'next/link';
 
 const formSchema = z.object({
   title: z.string().min(5),
@@ -281,10 +282,15 @@ export default function ManageLinksPage() {
                       <Badge variant="secondary">{service.categorySlug}</Badge>
                     </TableCell>
                     <TableCell>
-                        <Badge variant={service.status === 'published' ? 'default' : 'secondary'}>{service.status}</Badge>
+                        <Badge variant={service.status === 'published' ? 'default' : 'destructive'}>{service.status}</Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2 justify-end">
+                        <Button variant="outline" size="icon" asChild>
+                            <Link href={`/admin/manage-links/${service.id}/edit`}>
+                                <Edit className="h-4 w-4"/>
+                            </Link>
+                        </Button>
                         <Button variant="outline" size="icon" onClick={() => handleToggleStatus(service)}>
                             {service.status === 'published' ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}
                         </Button>

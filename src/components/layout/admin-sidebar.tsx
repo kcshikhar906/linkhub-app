@@ -46,7 +46,7 @@ export function AdminSidebar() {
   };
 
   const NavLink = ({ href, icon: Icon, label }: (typeof adminNavLinks)[0]) => {
-    const isActive = pathname === href;
+    const isActive = pathname.startsWith(href) && (href !== '/admin' || pathname === '/admin');
     return (
       <Tooltip>
         <TooltipTrigger asChild>
@@ -86,6 +86,7 @@ export function AdminSidebar() {
             <TooltipTrigger asChild>
                 <Link
                     href="/"
+                    target="_blank"
                     className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
                 >
                     <Home className="h-5 w-5" />
@@ -113,5 +114,3 @@ export function AdminSidebar() {
     </TooltipProvider>
   );
 }
-
-    
