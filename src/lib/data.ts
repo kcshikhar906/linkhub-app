@@ -11,7 +11,7 @@ import {
   Briefcase,
   Scale,
 } from 'lucide-react';
-import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import type { DocumentData, QueryDocumentSnapshot, Timestamp } from 'firebase/firestore';
 
 export type Service = {
   id: string;
@@ -37,6 +37,16 @@ export type SubmittedLink = {
     categorySlug: string;
     email: string;
     notes?: string;
+}
+
+export type ReportedLink = {
+    id: string;
+    serviceId: string;
+    serviceTitle: string;
+    reportedAt: Timestamp;
+    reporterEmail: string;
+    reason: string;
+    status: 'pending' | 'resolved';
 }
 
 // Helper to get Lucide icon component from string name
@@ -117,6 +127,31 @@ export const submissionConverter = {
             categorySlug: submission.categorySlug,
             email: submission.email,
             notes: submission.notes
+        };
+    }
+}
+
+export const reportConverter = {
+    fromFirestore: (snapshot: QueryDocumentSnapshot): ReportedLink => {
+        const data = snapshot.data();
+        return {
+            id: snapshot.id,
+            serviceId: data.serviceId,
+            serviceTitle: data.serviceTitle,
+            reportedAt: data.reportedAt,
+            reporterEmail: data.reporterEmail,
+            reason: data.reason,
+            status: data.status,
+        };
+    },
+    toFirestore: (report: Omit<ReportedLink, 'id'>): DocumentData => {
+        return {
+            serviceId: report.serviceId,
+            serviceTitle: report.serviceTitle,
+            reportedAt: report.reportedAt,
+            reporterEmail: report.reporterEmail,
+            reason: report.reason,
+            status: report.status,
         };
     }
 }
