@@ -11,7 +11,8 @@ import {
   Briefcase,
   Scale,
 } from 'lucide-react';
-import type { DocumentData, QueryDocumentSnapshot, Timestamp, ServerTimestamp } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
+import type { DocumentData, QueryDocumentSnapshot, ServerTimestamp } from 'firebase/firestore';
 
 export type Service = {
   id: string;
