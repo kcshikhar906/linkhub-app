@@ -24,6 +24,14 @@ export type Category = {
   icon: LucideIcon;
 };
 
+export type SubmittedLink = {
+    id: string;
+    title: string;
+    url: string;
+    categorySlug: string;
+    email: string;
+}
+
 export const CATEGORIES: Category[] = [
   { name: 'Immigration', slug: 'immigration', icon: Plane },
   { name: 'Tax', slug: 'tax', icon: Landmark },
@@ -32,6 +40,23 @@ export const CATEGORIES: Category[] = [
   { name: 'Transport', slug: 'transport', icon: Car },
   { name: 'Banking', slug: 'banking', icon: Banknote },
   { name: 'Nepal-Specific', slug: 'nepal-specific', icon: MountainSnow },
+];
+
+export const SUBMITTED_LINKS: SubmittedLink[] = [
+    {
+        id: 'sub-1',
+        title: 'Apply for Medicare',
+        url: 'https://www.servicesaustralia.gov.au/how-to-enrol-for-medicare',
+        categorySlug: 'healthcare',
+        email: 'suggester1@email.com'
+    },
+    {
+        id: 'sub-2',
+        title: 'Get a Myki Card (VIC)',
+        url: 'https://www.ptv.vic.gov.au/tickets/myki/',
+        categorySlug: 'transport',
+        email: 'suggester2@email.com'
+    }
 ];
 
 export const SERVICES: Service[] = [

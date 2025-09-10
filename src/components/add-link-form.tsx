@@ -7,6 +7,7 @@ import { z } from 'zod';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -20,67 +21,88 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { summarizeLinkCard, type SummarizeLinkCardOutput } from '@/ai/flows/summarize-link-card';
 import { Loader2 } from 'lucide-react';
-import { LinkCard } from './link-card';
+import { CATEGORIES } from '@/lib/data';
+import { Textarea } from '../ui/textarea';
 
 const formSchema = z.object({
+  title: z.string().min(5, { message: "Please enter a descriptive title."}),
   url: z.string().url({ message: 'Please enter a valid URL.' }),
+  categorySlug: z.string({ required_error: 'Please select a category.' }),
+  email: z.string().email({ message: 'Please enter a valid email address.' }),
+  notes: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 export function AddLinkForm() {
   const [isLoading, setIsLoading] = useState(false);
-  const [summary, setSummary] = useState<SummarizeLinkCardOutput | null>(null);
-  const [submittedUrl, setSubmittedUrl] = useState('');
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      title: '',
       url: '',
+      email: '',
+      notes: '',
     },
   });
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setIsLoading(true);
-    setSummary(null);
-    setSubmittedUrl(data.url);
-    try {
-      const result = await summarizeLinkCard({ url: data.url });
-      setSummary(result);
-      toast({
-        title: 'Summary Generated!',
-        description: 'Review the generated card below. We will add it to the directory soon.',
-      });
-    } catch (error) {
-      console.error('Error summarizing link:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error Generating Summary',
-        description: 'Could not summarize the provided link. Please try another one.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    // In a real app, you would send this data to your backend (e.g., Firestore)
+    console.log('Form submitted:', data);
+
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    toast({
+        title: 'Link Submitted!',
+        description: "Thank you for your contribution. We will review the link and add it to our directory shortly.",
+    });
+    form.reset();
+    setIsLoading(false);
   };
   
   return (
-    <>
     <Card>
-      <CardHeader>
-        <CardTitle>Submit a URL</CardTitle>
-        <CardDescription>
-          Enter the URL of an official government or institutional service page.
-        </CardDescription>
-      </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardContent>
+            <CardHeader>
+                <CardTitle>Suggest a New Link</CardTitle>
+                <CardDescription>
+                Fill out the form below to recommend a new service.
+                </CardDescription>
+            </CardHeader>
+          <CardContent className="space-y-4">
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Service Title</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="e.g., How to apply for a TFN"
+                      {...field}
+                      disabled={isLoading}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="url"
@@ -95,6 +117,66 @@ export function AddLinkForm() {
                     />
                   </FormControl>
                   <FormMessage />
+                </F_ormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="categorySlug"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {CATEGORIES.map(cat => (
+                        <SelectItem key={cat.slug} value={cat.slug}>{cat.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Your Email</FormLabel>
+                   <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="you@example.com"
+                      {...field}
+                      disabled={isLoading}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    We'll only use this to contact you if we have questions.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Additional Notes (Optional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Anything else we should know about this link?"
+                      {...field}
+                      disabled={isLoading}
+                    />
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -102,28 +184,11 @@ export function AddLinkForm() {
           <CardFooter>
             <Button type="submit" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLoading ? 'Generating...' : 'Generate Summary'}
+              {isLoading ? 'Submitting...' : 'Submit for Review'}
             </Button>
           </CardFooter>
         </form>
       </Form>
     </Card>
-
-    {summary && (
-        <div className="mt-8">
-            <h2 className="text-2xl font-bold tracking-tight font-headline mb-4 text-center">
-                Generated Preview
-            </h2>
-            <LinkCard service={{
-                id: 'preview',
-                title: 'Generated Service',
-                description: summary.description,
-                steps: summary.steps,
-                link: submittedUrl,
-                categorySlug: ''
-            }} />
-        </div>
-    )}
-    </>
   );
 }

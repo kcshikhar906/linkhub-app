@@ -2,8 +2,8 @@ import { AddLinkForm } from '@/components/add-link-form';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Add New Link',
-  description: 'Contribute to LinkHub by adding a new service link.',
+  title: 'Suggest a Link',
+  description: 'Help the community by suggesting a link to an essential service.',
 };
 
 export default function AddLinkPage() {
@@ -12,11 +12,10 @@ export default function AddLinkPage() {
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight font-headline">
-            Add a New Link
+            Suggest a Link
           </h1>
           <p className="text-muted-foreground mt-2">
-            Help the community by sharing a link to an essential service. We'll
-            use AI to summarize it and add it to our directory.
+            Help the community by sharing a link to an essential service. We'll review it and add it to our directory.
           </p>
         </div>
         <AddLinkForm />

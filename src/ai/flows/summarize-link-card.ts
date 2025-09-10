@@ -1,4 +1,3 @@
-// SummarizeLinkCard flow
 'use server';
 
 /**
@@ -18,6 +17,7 @@ const SummarizeLinkCardInputSchema = z.object({
 export type SummarizeLinkCardInput = z.infer<typeof SummarizeLinkCardInputSchema>;
 
 const SummarizeLinkCardOutputSchema = z.object({
+  title: z.string().describe('A concise, user-friendly title for the service.'),
   description: z.string().describe('A plain-English description of the service.'),
   steps: z.array(z.string()).describe('A step-by-step guide on how to use the service.'),
 });
@@ -33,12 +33,15 @@ const summarizeLinkCardPrompt = ai.definePrompt({
   output: {schema: SummarizeLinkCardOutputSchema},
   prompt: `You are an expert at summarizing official website content into plain English.
 
-  Given the following URL, please provide a concise description of the service offered on the page, and a step-by-step guide on how to use the service.
+  Given the following URL, please provide a concise title, a description of the service offered, and a step-by-step guide.
 
   URL: {{{url}}}
 
+  Title: 
+  A short, clear title for this service (e.g., "Apply for a Tax File Number").
+
   Description:
-  A plain-English description of what the service is and why you need it.
+  A plain-English description of what the service is and why someone would need it.
 
   Steps:
   A list of 3-5 bullet points breaking down the process into simple, actionable steps.

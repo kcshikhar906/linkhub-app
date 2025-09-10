@@ -1,41 +1,59 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Menu, PlusCircle, Search, Shield } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Menu, PlusCircle, Search, Shield, LogIn, LogOut } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { LinkHubLogo } from '@/components/icons';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
+import { useAuth } from '@/context/auth-context';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/categories', label: 'All Categories' },
   { href: '/nepal', label: 'For Nepal' },
   { href: '/about', label: 'About' },
-  { href: '/admin', label: 'Admin', icon: Shield },
+  { href: '/admin', label: 'Admin', icon: Shield, admin: true },
 ];
 
 export function Header() {
   const isMobile = useIsMobile();
   const pathname = usePathname();
   const [isSheetOpen, setSheetOpen] = useState(false);
+  const { user } = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
 
-  const NavLink = ({ href, label, icon: Icon }: { href: string; label: string, icon?: React.ElementType }) => {
+  const handleLogout = async () => {
+    await signOut(auth);
+    toast({
+      title: 'Logged Out',
+      description: 'You have been successfully logged out.',
+    });
+    router.push('/');
+  };
+
+  const NavLink = ({ href, label, icon: Icon, admin = false }: { href: string; label:string; icon?: React.ElementType, admin?: boolean }) => {
     const isActive =
       href === '/' ? pathname === href : pathname.startsWith(href);
     const isNepalLink = href === '/nepal';
-    const isAdminLink = href === '/admin';
+    
+    if(admin && !user) return null;
+
     return (
       <Link
         href={href}
         className={cn(
           'text-sm font-medium transition-colors hover:text-primary flex items-center gap-2',
-          isActive ? (isNepalLink ? 'text-accent' : isAdminLink ? 'text-destructive' : 'text-primary') : 'text-muted-foreground',
+          isActive ? (isNepalLink ? 'text-accent' : admin ? 'text-destructive' : 'text-primary') : 'text-muted-foreground',
           isNepalLink && 'hover:text-accent',
-          isAdminLink && 'hover:text-destructive'
+          admin && 'hover:text-destructive'
         )}
         onClick={() => setSheetOpen(false)}
       >
@@ -44,6 +62,20 @@ export function Header() {
       </Link>
     );
   };
+
+  const authButton = user ? (
+    <Button onClick={handleLogout} variant="outline" size="sm">
+      <LogOut className="h-4 w-4 mr-2" />
+      Logout
+    </Button>
+  ) : (
+    <Button asChild variant="outline" size="sm">
+      <Link href="/login">
+        <LogIn className="h-4 w-4 mr-2" />
+        Login
+      </Link>
+    </Button>
+  );
 
   if (isMobile) {
     return (
@@ -78,6 +110,9 @@ export function Header() {
                       <NavLink key={link.href} {...link} />
                     ))}
                   </nav>
+                  <div className="mt-8 pt-4 border-t">
+                    {authButton}
+                  </div>
                 </div>
               </SheetContent>
             </Sheet>
@@ -95,7 +130,7 @@ export function Header() {
           <span className="font-headline text-lg">LinkHub</span>
         </Link>
         <nav className="flex items-center gap-6">
-          {navLinks.filter(l => l.href !== '/admin').map((link) => (
+          {navLinks.map((link) => (
             <NavLink key={link.href} {...link} />
           ))}
         </nav>
@@ -106,18 +141,13 @@ export function Header() {
                     <span className="sr-only">Search</span>
                 </Link>
             </Button>
-            <Button asChild variant="outline">
-                <Link href="/admin">
-                    <Shield className="h-4 w-4" />
-                    Admin
-                </Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild>
+             <Button variant="outline" size="sm" asChild>
                 <Link href="/add">
                     <PlusCircle />
-                    Add New Link
+                    Suggest a Link
                 </Link>
             </Button>
+            {authButton}
         </div>
       </div>
     </header>
