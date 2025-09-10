@@ -65,7 +65,6 @@ export default function EditLinkPage({ params }: EditLinkPageProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true);
-  const { id } = params;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -97,6 +96,7 @@ export default function EditLinkPage({ params }: EditLinkPageProps) {
 
 
   useEffect(() => {
+    const { id } = params;
     fetchService(id);
 
     const fetchCategories = onSnapshot(
@@ -113,7 +113,7 @@ export default function EditLinkPage({ params }: EditLinkPageProps) {
     return () => {
       fetchCategories();
     };
-  }, [id, fetchService]);
+  }, [params, fetchService]);
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setIsLoading(true);
