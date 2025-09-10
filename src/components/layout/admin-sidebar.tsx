@@ -12,6 +12,7 @@ import {
   Home,
   Settings,
   Layers,
+  Upload,
 } from 'lucide-react';
 
 import {
@@ -29,6 +30,7 @@ const adminNavLinks = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/manage-links', label: 'Manage Links', icon: Link2 },
   { href: '/admin/manage-categories', label: 'Manage Categories', icon: Layers },
+  { href: '/admin/bulk-import', label: 'Bulk Import', icon: Upload },
 ];
 
 export function AdminSidebar() {
