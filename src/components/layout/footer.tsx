@@ -15,6 +15,12 @@ export function Footer() {
             <Link href="#" className="hover:text-primary transition-colors">
               Privacy Policy
             </Link>
+            <Link href="#" className="hover:text-primary transition-colors">
+              Terms of Service
+            </Link>
+            <Link href="#" className="hover:text-primary transition-colors">
+              Report an Error
+            </Link>
           </nav>
         </div>
       </div>

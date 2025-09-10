@@ -1,10 +1,16 @@
 import { CategoryCard } from '@/components/category-card';
 import { SearchBar } from '@/components/search-bar';
-import { CATEGORIES } from '@/lib/data';
+import { CATEGORIES, SERVICES } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { LinkCard } from '@/components/link-card';
+import { MountainSnow } from 'lucide-react';
 
 export default function Home() {
+  const nepalServices = SERVICES.filter(
+    (service) => service.categorySlug === 'nepal-specific'
+  ).slice(0, 2);
+
   return (
     <div className="container mx-auto px-4 py-8 md:py-16">
       <section className="text-center mb-16 md:mb-24">
@@ -19,7 +25,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section>
+      <section className="mb-16 md:mb-24">
         <div className="flex justify-between items-center mb-6">
            <h2 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
             Browse by Category
@@ -30,8 +36,27 @@ export default function Home() {
         </div>
        
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-          {CATEGORIES.map((category) => (
+          {CATEGORIES.filter(c => c.slug !== 'nepal-specific').map((category) => (
             <CategoryCard key={category.slug} category={category} />
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-3">
+            <MountainSnow className="h-8 w-8 text-accent" />
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight font-headline text-accent">
+              Navigating Australia from Nepal
+            </h2>
+          </div>
+          <Button asChild variant="link" className="text-accent">
+            <Link href="/nepal">View All</Link>
+          </Button>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {nepalServices.map((service) => (
+            <LinkCard key={service.id} service={service} />
           ))}
         </div>
       </section>
