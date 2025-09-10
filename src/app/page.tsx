@@ -16,12 +16,16 @@ async function getCategories(country: string, state?: string) {
     const servicesSnapshot = await getDocs(servicesQuery.withConverter(serviceConverter));
     const services = servicesSnapshot.docs.map(doc => doc.data());
     
+    // If there are no services for the selected location, we can't show any categories for it.
     if (services.length === 0) return [];
 
+    // Get the unique slugs from the services available in the location
     const categorySlugs = [...new Set(services.map(service => service.categorySlug))];
     
     if (categorySlugs.length === 0) return [];
 
+    // Fetch the full category details for those slugs
+    // Firestore 'in' queries are limited to 30 items. If you have more than 30 categories with services, this will need refactoring.
     const categoriesQuery = query(collection(db, 'categories'), where('slug', 'in', categorySlugs));
     const categoriesSnapshot = await getDocs(categoriesQuery.withConverter(categoryConverter));
     
@@ -70,6 +74,13 @@ export default async function Home({ searchParams }: { searchParams: { country?:
               <CategoryCard key={category.slug} category={category} />
             ))}
           </div>
+            {categories.length === 0 && (
+                <div className="text-center py-16 bg-card rounded-lg shadow-sm">
+                    <p className="text-muted-foreground">
+                        There are no services listed for the selected region yet.
+                    </p>
+                </div>
+            )}
         </section>
       </div>
     </main>
