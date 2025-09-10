@@ -96,8 +96,9 @@ export default function EditLinkPage({ params }: EditLinkPageProps) {
 
 
   useEffect(() => {
-    const { id } = params;
-    fetchService(id);
+    if (params.id) {
+        fetchService(params.id);
+    }
 
     const fetchCategories = onSnapshot(
       query(collection(db, 'categories'), orderBy('name')),
@@ -113,7 +114,7 @@ export default function EditLinkPage({ params }: EditLinkPageProps) {
     return () => {
       fetchCategories();
     };
-  }, [params, fetchService]);
+  }, [params.id, fetchService]);
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setIsLoading(true);
