@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, PlusCircle, Search } from 'lucide-react';
+import { Menu, PlusCircle, Search, Shield } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { LinkHubLogo } from '@/components/icons';
@@ -15,6 +15,7 @@ const navLinks = [
   { href: '/categories', label: 'All Categories' },
   { href: '/nepal', label: 'For Nepal' },
   { href: '/about', label: 'About' },
+  { href: '/admin', label: 'Admin', icon: Shield },
 ];
 
 export function Header() {
@@ -22,20 +23,23 @@ export function Header() {
   const pathname = usePathname();
   const [isSheetOpen, setSheetOpen] = useState(false);
 
-  const NavLink = ({ href, label }: { href: string; label: string }) => {
+  const NavLink = ({ href, label, icon: Icon }: { href: string; label: string, icon?: React.ElementType }) => {
     const isActive =
       href === '/' ? pathname === href : pathname.startsWith(href);
     const isNepalLink = href === '/nepal';
+    const isAdminLink = href === '/admin';
     return (
       <Link
         href={href}
         className={cn(
-          'text-sm font-medium transition-colors hover:text-primary',
-          isActive ? (isNepalLink ? 'text-accent' : 'text-primary') : 'text-muted-foreground',
-          isNepalLink && 'hover:text-accent'
+          'text-sm font-medium transition-colors hover:text-primary flex items-center gap-2',
+          isActive ? (isNepalLink ? 'text-accent' : isAdminLink ? 'text-destructive' : 'text-primary') : 'text-muted-foreground',
+          isNepalLink && 'hover:text-accent',
+          isAdminLink && 'hover:text-destructive'
         )}
         onClick={() => setSheetOpen(false)}
       >
+        {Icon && <Icon className="h-4 w-4" />}
         {label}
       </Link>
     );
@@ -91,7 +95,7 @@ export function Header() {
           <span className="font-headline text-lg">LinkHub</span>
         </Link>
         <nav className="flex items-center gap-6">
-          {navLinks.map((link) => (
+          {navLinks.filter(l => l.href !== '/admin').map((link) => (
             <NavLink key={link.href} {...link} />
           ))}
         </nav>
@@ -100,6 +104,12 @@ export function Header() {
                 <Link href="/search">
                     <Search className="h-5 w-5" />
                     <span className="sr-only">Search</span>
+                </Link>
+            </Button>
+            <Button asChild variant="outline">
+                <Link href="/admin">
+                    <Shield className="h-4 w-4" />
+                    Admin
                 </Link>
             </Button>
             <Button variant="outline" size="sm" asChild>
