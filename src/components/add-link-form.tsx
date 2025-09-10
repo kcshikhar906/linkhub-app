@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -32,8 +32,11 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { CATEGORIES } from '@/lib/data';
+import { getIcon, type Category } from '@/lib/data';
 import { Textarea } from '@/components/ui/textarea';
+import { collection, addDoc, getDocs, query, orderBy } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { submissionConverter, categoryConverter } from '@/lib/data';
 
 const formSchema = z.object({
   title: z.string().min(5, { message: "Please enter a descriptive title."}),
@@ -47,7 +50,17 @@ type FormValues = z.infer<typeof formSchema>;
 
 export function AddLinkForm() {
   const [isLoading, setIsLoading] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    async function fetchCategories() {
+        const q = query(collection(db, 'categories'), orderBy('name'));
+        const snapshot = await getDocs(q.withConverter(categoryConverter));
+        setCategories(snapshot.docs.map(doc => doc.data()));
+    }
+    fetchCategories();
+  }, []);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -61,17 +74,25 @@ export function AddLinkForm() {
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setIsLoading(true);
-    // In a real app, you would send this data to your backend (e.g., Firestore)
-    console.log('Form submitted:', data);
-
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
     
-    toast({
-        title: 'Link Submitted!',
-        description: "Thank you for your contribution. We will review the link and add it to our directory shortly.",
-    });
-    form.reset();
+    try {
+        const submissionsCol = collection(db, 'submissions').withConverter(submissionConverter);
+        await addDoc(submissionsCol, data);
+        
+        toast({
+            title: 'Link Submitted!',
+            description: "Thank you for your contribution. We will review the link and add it to our directory shortly.",
+        });
+        form.reset();
+    } catch (error) {
+        console.error("Error submitting form: ", error);
+        toast({
+            variant: 'destructive',
+            title: 'Submission Failed',
+            description: 'There was a problem submitting your link. Please try again later.',
+        });
+    }
+
     setIsLoading(false);
   };
   
@@ -126,14 +147,14 @@ export function AddLinkForm() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
+                  <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading || categories.length === 0}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a category" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {CATEGORIES.map(cat => (
+                      {categories.map(cat => (
                         <SelectItem key={cat.slug} value={cat.slug}>{cat.name}</SelectItem>
                       ))}
                     </SelectContent>

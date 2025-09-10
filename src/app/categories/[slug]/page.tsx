@@ -1,9 +1,11 @@
 import { LinkCard } from '@/components/link-card';
-import { CATEGORIES, SERVICES } from '@/lib/data';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { type Category, type Service, categoryConverter, serviceConverter, getIcon } from '@/lib/data';
 
 type CategoryPageProps = {
   params: {
@@ -11,8 +13,30 @@ type CategoryPageProps = {
   };
 };
 
+async function getCategory(slug: string): Promise<Category | null> {
+    const q = query(collection(db, "categories"), where("slug", "==", slug));
+    const querySnapshot = await getDocs(q.withConverter(categoryConverter));
+    if (querySnapshot.empty) {
+        return null;
+    }
+    return querySnapshot.docs[0].data();
+}
+
+async function getServices(slug: string): Promise<Service[]> {
+    const q = query(collection(db, "services"), where("categorySlug", "==", slug));
+    const querySnapshot = await getDocs(q.withConverter(serviceConverter));
+    return querySnapshot.docs.map(doc => doc.data());
+}
+
+async function getCategories() {
+  const categoriesCol = collection(db, 'categories').withConverter(categoryConverter);
+  const categoriesSnapshot = await getDocs(categoriesCol);
+  return categoriesSnapshot.docs.map(doc => doc.data());
+}
+
+
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
-  const category = CATEGORIES.find((c) => c.slug === params.slug);
+  const category = await getCategory(params.slug);
   if (!category) {
     return {};
   }
@@ -23,21 +47,22 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
 }
 
 export async function generateStaticParams() {
-  return CATEGORIES.map((category) => ({
+  const categories = await getCategories();
+  return categories.map((category) => ({
     slug: category.slug,
   }));
 }
 
-export default function CategoryPage({ params }: CategoryPageProps) {
+export default async function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = params;
-  const category = CATEGORIES.find((c) => c.slug === slug);
+  const category = await getCategory(slug);
 
   if (!category) {
     notFound();
   }
 
-  const services = SERVICES.filter((service) => service.categorySlug === slug);
-  const Icon = category.icon;
+  const services = await getServices(slug);
+  const Icon = getIcon(category.iconName);
 
   return (
     <>

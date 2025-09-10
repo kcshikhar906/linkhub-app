@@ -18,29 +18,92 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { SUBMITTED_LINKS } from '@/lib/data';
-import { ExternalLink, Check, Trash2 } from 'lucide-react';
+import { ExternalLink, Check, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useEffect, useState } from 'react';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, doc, deleteDoc, setDoc, getDoc } from 'firebase/firestore';
+import {
+  submissionConverter,
+  type SubmittedLink,
+  serviceConverter,
+} from '@/lib/data';
 
 function AdminPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [submissions, setSubmissions] = useState<SubmittedLink[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleApprove = (id: string) => {
-    toast({
-      title: 'Link Approved',
-      description: `Link ${id} has been approved and will be added.`,
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    const submissionsCol = collection(db, 'submissions').withConverter(
+      submissionConverter
+    );
+    const unsubscribe = onSnapshot(submissionsCol, (snapshot) => {
+      setSubmissions(snapshot.docs.map((doc) => doc.data()));
+      setLoading(false);
     });
-    // Here you would typically call a function to move this data to your main SERVICES list
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleApprove = async (submission: SubmittedLink) => {
+    // Note: For a real app, you'd likely open a modal here
+    // to edit/confirm the details before approving.
+    // For simplicity, we'll auto-summarize and add.
+    
+    // This is a placeholder for the AI summarization logic.
+    // In a real scenario, you'd call a cloud function or a server-side
+    // flow to fetch the URL content and generate a summary.
+    const serviceData = {
+        title: submission.title,
+        description: 'Description generated from URL.', // Placeholder
+        steps: ['Step 1 generated from URL', 'Step 2 generated from URL'], // Placeholder
+        link: submission.url,
+        categorySlug: submission.categorySlug
+    };
+
+    try {
+        // Add to the public 'services' collection
+        const newServiceRef = doc(collection(db, 'services')).withConverter(serviceConverter);
+        await setDoc(newServiceRef, serviceData);
+
+        // Delete from the 'submissions' collection
+        await deleteDoc(doc(db, 'submissions', submission.id));
+
+        toast({
+            title: 'Link Approved',
+            description: `Link "${submission.title}" has been approved and published.`,
+        });
+
+    } catch (error) {
+        console.error("Error approving link: ", error);
+        toast({
+            variant: 'destructive',
+            title: 'Approval Failed',
+            description: 'There was an error approving the link.',
+        });
+    }
   };
 
-  const handleReject = (id: string) => {
-    toast({
-      variant: 'destructive',
-      title: 'Link Rejected',
-      description: `Link ${id} has been rejected and removed.`,
-    });
-    // Here you would typically call a function to delete this data
+  const handleReject = async (id: string, title: string) => {
+     try {
+        await deleteDoc(doc(db, 'submissions', id));
+        toast({
+          variant: 'destructive',
+          title: 'Link Rejected',
+          description: `Link "${title}" has been rejected and removed.`,
+        });
+     } catch (error) {
+         console.error("Error rejecting link: ", error);
+         toast({
+            variant: 'destructive',
+            title: 'Rejection Failed',
+            description: 'There was an error rejecting the link.',
+        });
+     }
   };
 
   return (
@@ -59,12 +122,14 @@ function AdminPage() {
         <CardHeader>
           <CardTitle>Pending Submissions</CardTitle>
           <CardDescription>
-            {SUBMITTED_LINKS.length > 0
+            {loading ? 'Loading submissions...' : 
+                submissions.length > 0
               ? 'Review the links submitted by the community.'
               : 'There are no pending submissions.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {loading ? <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground"/></div> :
           <Table>
             <TableHeader>
               <TableRow>
@@ -76,7 +141,7 @@ function AdminPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {SUBMITTED_LINKS.map((link) => (
+              {submissions.map((link) => (
                 <TableRow key={link.id}>
                   <TableCell className="font-medium">{link.title}</TableCell>
                   <TableCell>
@@ -99,7 +164,7 @@ function AdminPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleApprove(link.id)}
+                        onClick={() => handleApprove(link)}
                       >
                         <Check className="h-4 w-4 mr-2" />
                         Approve
@@ -107,7 +172,7 @@ function AdminPage() {
                       <Button
                         size="sm"
                         variant="destructive"
-                        onClick={() => handleReject(link.id)}
+                        onClick={() => handleReject(link.id, link.title)}
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
                         Reject
@@ -118,6 +183,7 @@ function AdminPage() {
               ))}
             </TableBody>
           </Table>
+          }
         </CardContent>
       </Card>
     </>

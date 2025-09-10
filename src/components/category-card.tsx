@@ -2,13 +2,14 @@ import Link from 'next/link';
 import type { Category } from '@/lib/data';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { getIcon } from '@/lib/data';
 
 interface CategoryCardProps {
   category: Category;
 }
 
 export function CategoryCard({ category }: CategoryCardProps) {
-  const Icon = category.icon;
+  const Icon = getIcon(category.iconName);
 
   return (
     <Link

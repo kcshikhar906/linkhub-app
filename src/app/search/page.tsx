@@ -2,18 +2,34 @@
 
 import { useSearchParams } from 'next/navigation';
 import { LinkCard } from '@/components/link-card';
-import { SERVICES } from '@/lib/data';
 import { SearchBar } from '@/components/search-bar';
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { serviceConverter, type Service } from '@/lib/data';
+import { Skeleton } from '@/components/ui/skeleton';
 
 function SearchResults() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q');
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchServices() {
+        setLoading(true);
+        const servicesCol = collection(db, 'services').withConverter(serviceConverter);
+        const servicesSnapshot = await getDocs(servicesCol);
+        setServices(servicesSnapshot.docs.map(doc => doc.data()));
+        setLoading(false);
+    }
+    fetchServices();
+  }, [])
 
   const filteredServices = query
-    ? SERVICES.filter(
+    ? services.filter(
         (service) =>
           service.title.toLowerCase().includes(query.toLowerCase()) ||
           service.description.toLowerCase().includes(query.toLowerCase())
@@ -29,7 +45,12 @@ function SearchResults() {
             <SearchBar />
           </div>
 
-          {query ? (
+          {loading ? (
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Skeleton className="h-64 w-full" />
+                <Skeleton className="h-64 w-full" />
+            </div>
+          ) : query ? (
             <>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-6 font-headline">
                 Results for "{query}"

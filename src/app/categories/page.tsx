@@ -1,14 +1,32 @@
 import { LinkCard } from '@/components/link-card';
-import { CATEGORIES, SERVICES } from '@/lib/data';
 import type { Metadata } from 'next';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { type Category, type Service, categoryConverter, serviceConverter, getIcon } from '@/lib/data';
 
 export const metadata: Metadata = {
   title: 'All Categories',
 };
 
-export default function AllCategoriesPage() {
+async function getCategories(): Promise<Category[]> {
+  const q = query(collection(db, 'categories'), orderBy('name'));
+  const snapshot = await getDocs(q.withConverter(categoryConverter));
+  return snapshot.docs.map(doc => doc.data());
+}
+
+async function getServices(): Promise<Service[]> {
+  const q = query(collection(db, 'services'), orderBy('title'));
+  const snapshot = await getDocs(q.withConverter(serviceConverter));
+  return snapshot.docs.map(doc => doc.data());
+}
+
+
+export default async function AllCategoriesPage() {
+  const categories = await getCategories();
+  const services = await getServices();
+
   return (
     <>
       <Header />
@@ -18,13 +36,13 @@ export default function AllCategoriesPage() {
             All Services
           </h1>
           <div className="space-y-12">
-            {CATEGORIES.map((category) => {
-              const categoryServices = SERVICES.filter(
+            {categories.map((category) => {
+              const categoryServices = services.filter(
                 (service) => service.categorySlug === category.slug
               );
               if (categoryServices.length === 0) return null;
 
-              const Icon = category.icon;
+              const Icon = getIcon(category.iconName);
 
               return (
                 <section key={category.slug} id={category.slug}>

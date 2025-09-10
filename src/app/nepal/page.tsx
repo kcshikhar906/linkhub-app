@@ -1,24 +1,44 @@
 import { LinkCard } from '@/components/link-card';
-import { CATEGORIES, SERVICES } from '@/lib/data';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { MountainSnow } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { type Category, type Service, categoryConverter, serviceConverter, getIcon } from '@/lib/data';
 
 export const metadata: Metadata = {
   title: 'For the Nepalese Community',
   description: 'Services and guides specifically for the Nepalese community in Australia.',
 };
 
-export default function NepalPage() {
-  const category = CATEGORIES.find((c) => c.slug === 'nepal-specific');
+async function getNepalCategory(): Promise<Category | null> {
+    const q = query(collection(db, "categories"), where("slug", "==", 'nepal-specific'));
+    const querySnapshot = await getDocs(q.withConverter(categoryConverter));
+    if (querySnapshot.empty) {
+        return null;
+    }
+    return querySnapshot.docs[0].data();
+}
+
+async function getNepalServices(): Promise<Service[]> {
+    const q = query(collection(db, "services"), where("categorySlug", "==", 'nepal-specific'));
+    const querySnapshot = await getDocs(q.withConverter(serviceConverter));
+    return querySnapshot.docs.map(doc => doc.data());
+}
+
+
+export default async function NepalPage() {
+  const category = await getNepalCategory();
 
   if (!category) {
     notFound();
   }
 
-  const services = SERVICES.filter((service) => service.categorySlug === 'nepal-specific');
+  const services = await getNepalServices();
+  const Icon = getIcon(category.iconName);
+
 
   return (
    <>
@@ -26,7 +46,7 @@ export default function NepalPage() {
     <main className="flex-1">
     <div className="container mx-auto px-4 py-8 md:py-16">
       <div className="flex items-center gap-4 mb-8">
-        <MountainSnow className="h-10 w-10 text-accent" />
+        <Icon className="h-10 w-10 text-accent" />
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight font-headline text-accent">
           {category.name}
         </h1>

@@ -1,12 +1,23 @@
 import { CategoryCard } from '@/components/category-card';
 import { SearchBar } from '@/components/search-bar';
-import { CATEGORIES, SERVICES } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
+import { db } from '@/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { type Category, categoryConverter } from '@/lib/data';
 
-export default function Home() {
+async function getCategories() {
+  const categoriesCol = collection(db, 'categories').withConverter(categoryConverter);
+  const categoriesSnapshot = await getDocs(categoriesCol);
+  const categoriesList = categoriesSnapshot.docs.map(doc => doc.data());
+  return categoriesList;
+}
+
+export default async function Home() {
+  const categories = await getCategories();
+
   return (
    <>
     <Header />
@@ -35,7 +46,7 @@ export default function Home() {
           </div>
         
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {CATEGORIES.map((category) => (
+            {categories.map((category) => (
               <CategoryCard key={category.slug} category={category} />
             ))}
           </div>
