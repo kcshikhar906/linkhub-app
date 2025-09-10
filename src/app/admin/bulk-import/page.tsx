@@ -26,7 +26,7 @@ const serviceSchema = z.object({
     categorySlug: z.string().min(1, 'Category slug is required'),
     description: z.string().min(10, 'Description is too short'),
     steps: z.string().min(10, 'Steps are required'),
-    country: z.string().min(2, 'Country code is required').max(3, 'Country code is too long'),
+    country: z.string().min(2, 'Country is required'),
     state: z.string().optional(),
     status: z.enum(['published', 'disabled']).default('published'),
 });
