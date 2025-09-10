@@ -1,0 +1,102 @@
+'use client';
+
+import { Copy, Share2, AlertTriangle, ExternalLink } from 'lucide-react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import { Button } from '@/components/ui/button';
+import type { Service } from '@/lib/data';
+import { useToast } from '@/hooks/use-toast';
+
+interface LinkCardProps {
+  service: Service;
+}
+
+export function LinkCard({ service }: LinkCardProps) {
+  const { toast } = useToast();
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(service.link);
+    toast({
+      title: 'Link Copied!',
+      description: 'The official site URL has been copied to your clipboard.',
+    });
+  };
+
+  const handleReportLink = () => {
+    toast({
+      title: 'Link Reported',
+      description: 'Thank you for your feedback! We will review this link.',
+    });
+  };
+  
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: service.title,
+        text: `Check out this guide for "${service.title}" on LinkHub.`,
+        url: window.location.href,
+      }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast({
+        title: 'Page Link Copied!',
+        description: 'You can now share it with others.',
+      });
+    }
+  }
+
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="font-headline text-xl">{service.title}</CardTitle>
+        <CardDescription>{service.description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Accordion type="single" collapsible>
+          <AccordionItem value="item-1">
+            <AccordionTrigger className="text-base">How to do it:</AccordionTrigger>
+            <AccordionContent>
+              <ol className="list-decimal space-y-2 pl-6 text-muted-foreground">
+                {service.steps.map((step, index) => (
+                  <li key={index}>{step}</li>
+                ))}
+              </ol>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </CardContent>
+      <CardFooter className="flex flex-wrap gap-2 justify-between">
+        <Button asChild className="bg-primary hover:bg-primary/90">
+          <a href={service.link} target="_blank" rel="noopener noreferrer">
+            Visit Official Site
+            <ExternalLink className="ml-2 h-4 w-4" />
+          </a>
+        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="icon" onClick={handleCopyLink} aria-label="Copy official link">
+            <Copy className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={handleShare} aria-label="Share this guide">
+            <Share2 className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={handleReportLink} aria-label="Report broken link">
+            <AlertTriangle className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardFooter>
+    </Card>
+  );
+}
