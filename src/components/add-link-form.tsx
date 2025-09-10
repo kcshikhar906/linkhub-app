@@ -37,11 +37,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { collection, addDoc, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { submissionConverter, categoryConverter } from '@/lib/data';
+import { COUNTRIES, type State } from '@/lib/countries';
 
 const formSchema = z.object({
   title: z.string().min(5, { message: "Please enter a descriptive title."}),
   url: z.string().url({ message: 'Please enter a valid URL.' }),
   categorySlug: z.string({ required_error: 'Please select a category.' }),
+  country: z.string({ required_error: 'Please select a country.' }),
+  state: z.string().optional(),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   notes: z.string().optional(),
 });
@@ -51,6 +54,7 @@ type FormValues = z.infer<typeof formSchema>;
 export function AddLinkForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [states, setStates] = useState<State[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -71,6 +75,15 @@ export function AddLinkForm() {
       notes: '',
     },
   });
+
+  const selectedCountry = form.watch('country');
+
+  useEffect(() => {
+    const countryData = COUNTRIES.find(c => c.code === selectedCountry);
+    setStates(countryData ? countryData.states : []);
+    form.setValue('state', undefined);
+  }, [selectedCountry, form]);
+
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setIsLoading(true);
@@ -163,6 +176,52 @@ export function AddLinkForm() {
                 </FormItem>
               )}
             />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="country"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Country</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a country" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {COUNTRIES.map(c => (
+                            <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State / Province (Optional)</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={isLoading || states.length === 0}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a state" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {states.map(s => (
+                            <SelectItem key={s.code} value={s.code}>{s.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+            </div>
             <FormField
               control={form.control}
               name="email"

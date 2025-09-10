@@ -59,6 +59,8 @@ export function ReportDialog({ isOpen, setIsOpen, service }: ReportDialogProps) 
             serviceTitle: service.title,
             reportedAt: serverTimestamp(),
             status: 'pending' as const,
+            country: service.country,
+            state: service.state,
         }
       const reportsCol = collection(db, 'reports').withConverter(reportConverter);
       await addDoc(reportsCol, reportData);

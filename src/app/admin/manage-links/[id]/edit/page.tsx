@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -17,6 +16,7 @@ import {
   categoryConverter,
   serviceConverter,
 } from '@/lib/data';
+import { COUNTRIES, type State } from '@/lib/countries';
 import { Loader2, ArrowLeft, Save } from 'lucide-react';
 import {
   Select,
@@ -50,6 +50,8 @@ const formSchema = z.object({
   categorySlug: z.string(),
   description: z.string().min(10),
   steps: z.string().min(10),
+  country: z.string(),
+  state: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -63,12 +65,21 @@ type EditLinkPageProps = {
 export default function EditLinkPage({ params }: EditLinkPageProps) {
   const { toast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [states, setStates] = useState<State[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
   });
+
+  const selectedCountry = form.watch('country');
+
+  useEffect(() => {
+    const countryData = COUNTRIES.find(c => c.code === selectedCountry);
+    setStates(countryData ? countryData.states : []);
+  }, [selectedCountry]);
+
 
   const fetchService = useCallback(async (serviceId: string) => {
       try {
@@ -197,6 +208,39 @@ export default function EditLinkPage({ params }: EditLinkPageProps) {
                 />
                  {form.formState.errors.link && <p className="text-sm text-destructive">{form.formState.errors.link.message}</p>}
 
+              </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="grid gap-3">
+                    <label htmlFor="country">Country</label>
+                     <Select value={form.watch('country')} onValueChange={(value) => form.setValue('country', value)}>
+                      <SelectTrigger id="country">
+                        <SelectValue placeholder="Select a country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {COUNTRIES.map((c) => (
+                          <SelectItem key={c.code} value={c.code}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                     {form.formState.errors.country && <p className="text-sm text-destructive">{form.formState.errors.country.message}</p>}
+                  </div>
+                 <div className="grid gap-3">
+                    <label htmlFor="state">State / Province</label>
+                     <Select value={form.watch('state')} onValueChange={(value) => form.setValue('state', value)} disabled={states.length === 0}>
+                      <SelectTrigger id="state">
+                        <SelectValue placeholder="Select a state (if applicable)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {states.map((s) => (
+                          <SelectItem key={s.code} value={s.code}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
               </div>
               <div className="grid gap-3">
                 <label htmlFor="categorySlug">Category</label>

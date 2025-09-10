@@ -28,6 +28,8 @@ export type Service = {
   link: string;
   categorySlug: string;
   status: 'published' | 'disabled';
+  country: string; // e.g., 'AU', 'NP'
+  state?: string; // e.g., 'NSW', 'VIC'
 };
 
 export type Category = {
@@ -45,6 +47,8 @@ export type SubmittedLink = {
     categorySlug: string;
     email: string;
     notes?: string;
+    country: string;
+    state?: string;
 }
 
 export type ReportedLink = {
@@ -55,6 +59,8 @@ export type ReportedLink = {
     reporterEmail: string;
     reason: string;
     status: 'pending' | 'resolved';
+    country: string;
+    state?: string;
 }
 
 // Object of available icons
@@ -93,7 +99,9 @@ export const serviceConverter = {
             steps: data.steps,
             link: data.link,
             categorySlug: data.categorySlug,
-            status: data.status || 'published' // Default to published
+            status: data.status || 'published', // Default to published
+            country: data.country,
+            state: data.state,
         };
     },
     toFirestore: (service: Partial<Service>): DocumentData => {
@@ -106,6 +114,8 @@ export const serviceConverter = {
         if (service.link !== undefined) data.link = service.link;
         if (service.categorySlug !== undefined) data.categorySlug = service.categorySlug;
         if (service.status !== undefined) data.status = service.status;
+        if (service.country !== undefined) data.country = service.country;
+        if (service.state !== undefined) data.state = service.state;
         return data;
     }
 };
@@ -138,16 +148,14 @@ export const submissionConverter = {
             url: data.url,
             categorySlug: data.categorySlug,
             email: data.email,
-            notes: data.notes
+            notes: data.notes,
+            country: data.country,
+            state: data.state,
         };
     },
-    toFirestore: (submission: Omit<SubmittedLink, 'id'>): DocumentData => {
+    toFirestore: (submission: Partial<Omit<SubmittedLink, 'id'>>): DocumentData => {
         return {
-            title: submission.title,
-            url: submission.url,
-            categorySlug: submission.categorySlug,
-            email: submission.email,
-            notes: submission.notes
+           ...submission
         };
     }
 }
@@ -165,6 +173,8 @@ export const reportConverter = {
             reporterEmail: data.reporterEmail,
             reason: data.reason,
             status: data.status,
+            country: data.country,
+            state: data.state,
         };
     },
     toFirestore: (report: Partial<Omit<ReportedLink, 'id'>>): DocumentData => {

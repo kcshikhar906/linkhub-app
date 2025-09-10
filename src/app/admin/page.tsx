@@ -127,6 +127,8 @@ function AdminPage() {
         steps: ['Step 1', 'Step 2'],
         link: submission.url,
         categorySlug: submission.categorySlug,
+        country: submission.country,
+        state: submission.state,
         status: 'published' as const
     };
 
@@ -261,6 +263,7 @@ function AdminPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Title</TableHead>
+                <TableHead>Location</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>URL</TableHead>
                 <TableHead>Submitted By</TableHead>
@@ -271,6 +274,12 @@ function AdminPage() {
               {submissions.map((link) => (
                 <TableRow key={link.id}>
                   <TableCell className="font-medium">{link.title}</TableCell>
+                   <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-semibold">{link.country}</span>
+                        <span className="text-xs text-muted-foreground">{link.state}</span>
+                      </div>
+                    </TableCell>
                   <TableCell>
                     <Badge variant="secondary">{link.categorySlug}</Badge>
                   </TableCell>
