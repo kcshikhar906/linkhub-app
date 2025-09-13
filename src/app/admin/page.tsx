@@ -39,7 +39,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, Check, Trash2, Loader2, PlusCircle, Link as LinkIcon, Layers, FileClock, AlertCircle, Save, Clock, Pencil, Edit, BookText, Info, ChevronsUpDown, FileText, Map } from 'lucide-react';
+import { ExternalLink, Check, Trash2, Loader2, PlusCircle, Link as LinkIcon, Layers, FileClock, AlertCircle, Save, Clock, Pencil, Edit, BookText, Info, ChevronsUpDown, FileText, Map, Phone, Mail, MapPin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
@@ -302,14 +302,17 @@ function AdminPage() {
     setIsLoading(false);
   };
 
-  const handleReject = async (id: string, title: string) => {
-     if (!window.confirm(`Are you sure you want to reject and delete the submission "${title}"?`)) return;
+  const handleReject = async (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+     e.stopPropagation();
+     if (!reviewingSubmission) return;
+     if (!window.confirm(`Are you sure you want to reject and delete the submission "${reviewingSubmission.title}"?`)) return;
      try {
-        await deleteDoc(doc(db, 'submissions', id));
+        await deleteDoc(doc(db, 'submissions', reviewingSubmission.id));
         toast({
           title: 'Link Rejected',
-          description: `The submission for "${title}" has been deleted.`,
+          description: `The submission for "${reviewingSubmission.title}" has been deleted.`,
         });
+        setIsReviewDialogOpen(false);
      } catch (error) {
          console.error("Error rejecting link: ", error);
          toast({
@@ -458,20 +461,23 @@ function AdminPage() {
                          <div className="grid gap-3">
                             <Label htmlFor="phone">Phone Number</Label>
                              <div className="relative">
-                                <Input id="phone" type="tel" placeholder="e.g., (02) 1234 5678" {...form.register('phone')} />
+                               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input id="phone" type="tel" placeholder="e.g., (02) 1234 5678" {...form.register('phone')} className="pl-10" />
                              </div>
                         </div>
                          <div className="grid gap-3">
                             <Label htmlFor="email">Email Address</Label>
                              <div className="relative">
-                                <Input id="email" type="email" placeholder="e.g., contact@business.com.au" {...form.register('email')} />
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input id="email" type="email" placeholder="e.g., contact@business.com.au" {...form.register('email')} className="pl-10"/>
                              </div>
                             {form.formState.errors.email && <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>}
                         </div>
                          <div className="grid gap-3">
                             <Label htmlFor="address">Physical Address</Label>
                              <div className="relative">
-                                <Input id="address" type="text" placeholder="e.g., 123 Example St, Sydney NSW 2000" {...form.register('address')} />
+                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input id="address" type="text" placeholder="e.g., 123 Example St, Sydney NSW 2000" {...form.register('address')} className="pl-10" />
                             </div>
                         </div>
                     </div>
@@ -652,7 +658,7 @@ function AdminPage() {
                     <Button
                         type="button"
                         variant="destructive"
-                        onClick={() => reviewingSubmission && handleReject(reviewingSubmission.id, reviewingSubmission.title)}
+                        onClick={(e) => handleReject(e)}
                         disabled={isLoading}
                     >
                         <Trash2 className="mr-2" />

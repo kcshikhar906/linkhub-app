@@ -341,7 +341,8 @@ function ManageLinksPageComponent() {
     setIsLoading(false);
   };
 
-  const handleDelete = async (id: string, title: string) => {
+  const handleDelete = async (e: React.MouseEvent<HTMLButtonElement, MouseEvent>, id: string, title: string) => {
+    e.stopPropagation();
     if (!window.confirm(`Are you sure you want to delete "${title}"? This cannot be undone.`)) return;
     try {
       await deleteDoc(doc(db, 'services', id));
@@ -453,7 +454,7 @@ function ManageLinksPageComponent() {
                                     <Button variant="outline" size="icon" onClick={() => openViewDialog(service)}><Eye className="h-4 w-4"/></Button>
                                     <Button variant="outline" size="icon" onClick={() => openEditDialog(service)}><Edit className="h-4 w-4"/></Button>
                                     <Button variant="outline" size="icon" onClick={() => handleToggleStatus(service)}>{service.status === 'published' ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}</Button>
-                                    <Button variant="destructive" size="icon" onClick={() => handleDelete(service.id, service.title)}><Trash2  className="h-4 w-4"/></Button>
+                                    <Button variant="destructive" size="icon" onClick={(e) => handleDelete(e, service.id, service.title)}><Trash2  className="h-4 w-4"/></Button>
                                 </div>
                                 </TableCell>
                             </TableRow>
@@ -486,7 +487,7 @@ function ManageLinksPageComponent() {
                                 <Button variant="outline" size="icon" onClick={() => openViewDialog(service)}><Eye className="h-4 w-4"/></Button>
                                 <Button variant="outline" size="icon" onClick={() => openEditDialog(service)}><Edit className="h-4 w-4"/></Button>
                                 <Button variant="outline" size="icon" onClick={() => handleToggleStatus(service)}>{service.status === 'published' ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}</Button>
-                                <Button variant="destructive" size="icon" onClick={() => handleDelete(service.id, service.title)}><Trash2  className="h-4 w-4"/></Button>
+                                <Button variant="destructive" size="icon" onClick={(e) => handleDelete(e, service.id, service.title)}><Trash2  className="h-4 w-4"/></Button>
                              </CardFooter>
                         </Card>
                     ))}
@@ -947,5 +948,3 @@ export default function ManageLinksPage() {
         </Suspense>
     )
 }
-
-    
