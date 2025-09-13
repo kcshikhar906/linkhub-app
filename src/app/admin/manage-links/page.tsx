@@ -58,6 +58,8 @@ import {
   MapPin,
   BookText,
   Info,
+  Check,
+  ChevronsUpDown
 } from 'lucide-react';
 import {
   Select,
@@ -66,6 +68,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+  } from "@/components/ui/command"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+  } from "@/components/ui/popover"
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -85,6 +99,7 @@ import {
 } from 'firebase/firestore';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { CATEGORY_TAGS } from '@/lib/category-tags';
 
 const formSchema = z.object({
   title: z.string().min(5),
@@ -99,7 +114,7 @@ const formSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
   address: z.string().optional(),
-  tags: z.string().optional(),
+  tags: z.array(z.string()).optional(),
 }).refine(data => {
     if (data.serviceType === 'guide') {
         return !!data.steps && data.steps.length > 10;
@@ -141,11 +156,15 @@ function ManageLinksPageComponent() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       verified: false,
+      tags: [],
     }
   });
 
   const selectedCountry = form.watch('country');
   const serviceType = form.watch('serviceType');
+  const selectedCategorySlug = form.watch('categorySlug');
+  const availableTags = useMemo(() => CATEGORY_TAGS[selectedCategorySlug] || [], [selectedCategorySlug]);
+
 
   useEffect(() => {
     const countryData = COUNTRIES.find((c) => c.code === selectedCountry);
@@ -155,6 +174,10 @@ function ManageLinksPageComponent() {
         form.setValue('state', undefined);
     }
   }, [selectedCountry, form, editingService]);
+  
+  useEffect(() => {
+    form.setValue('tags', []);
+  }, [selectedCategorySlug, form]);
 
   const openEditDialog = async (serviceOrId: Service | string) => {
     let service: Service | null = null;
@@ -181,7 +204,7 @@ function ManageLinksPageComponent() {
         form.reset({
             ...service,
             steps: service.steps?.join('\n') || '',
-            tags: service.tags?.join(', ') || '',
+            tags: service.tags || [],
         });
         setIsEditDialogOpen(true);
     }
@@ -248,11 +271,11 @@ function ManageLinksPageComponent() {
     setIsLoading(true);
     const serviceData = {
       ...data,
-      tags: data.tags?.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) || [],
-      steps: data.serviceType === 'guide' ? data.steps?.split('\n').filter((step) => step.trim() !== '') : null,
-      phone: data.serviceType === 'info' ? data.phone : null,
-      email: data.serviceType === 'info' ? data.email : null,
-      address: data.serviceType === 'info' ? data.address : null,
+      tags: data.tags || [],
+      steps: data.serviceType === 'guide' ? data.steps?.split('\n').filter((step) => step.trim() !== '') : undefined,
+      phone: data.serviceType === 'info' ? data.phone : undefined,
+      email: data.serviceType === 'info' ? data.email : undefined,
+      address: data.serviceType === 'info' ? data.address : undefined,
       status: 'published' as const,
       verified: data.verified || false,
     };
@@ -261,7 +284,7 @@ function ManageLinksPageComponent() {
         if (editingService) {
             // Update existing service
             const serviceRef = doc(db, 'services', editingService.id).withConverter(serviceConverter);
-            await updateDoc(serviceRef, serviceData);
+            await updateDoc(serviceRef, serviceConverter.toFirestore(serviceData));
             toast({
                 title: 'Service Updated',
                 description: 'The service has been successfully updated.',
@@ -270,14 +293,14 @@ function ManageLinksPageComponent() {
         } else {
             // Add new service
             const servicesCol = collection(db, 'services').withConverter(serviceConverter);
-            await addDoc(servicesCol, serviceData);
+            await addDoc(servicesCol, serviceConverter.toFirestore(serviceData));
             toast({
                 title: 'Service Added',
                 description: 'The new service has been published.',
             });
             setIsAddDialogOpen(false);
         }
-        form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: undefined, tags: '' });
+        form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: undefined, tags: [] });
         
     } catch (error) {
       console.error('Error saving service: ', error);
@@ -484,7 +507,7 @@ function ManageLinksPageComponent() {
                     const count = categoryCounts[category.slug] || 0;
                     return (
                         <div key={category.slug} onClick={() => handleCategoryClick(category)} className="cursor-pointer">
-                            <Card className="h-full transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-1 hover:border-primary">
+                             <Card className="h-full transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-1 hover:border-primary">
                                 <CardContent className="flex flex-col items-center justify-center p-6 text-center">
                                 <Icon className="h-10 w-10 mb-4 text-primary" />
                                 <h3 className="font-semibold text-base text-card-foreground mb-2">
@@ -551,12 +574,19 @@ function ManageLinksPageComponent() {
             <Textarea id="description" placeholder="A brief explanation of the service." {...form.register('description')} />
             {form.formState.errors.description && <p className="text-sm text-destructive">{form.formState.errors.description.message}</p>}
         </div>
-
-        <div className="grid gap-3">
-            <Label htmlFor="tags">Tags</Label>
-            <Input id="tags" type="text" placeholder="e.g. consultancy, college, ielts" {...form.register('tags')} />
-            <p className="text-xs text-muted-foreground">Separate tags with a comma. These are used for filtering within a category.</p>
-        </div>
+        
+        {availableTags.length > 0 && (
+            <div className="grid gap-3">
+                <Label>Tags / Sub-categories</Label>
+                <MultiSelect
+                    options={availableTags.map(tag => ({ value: tag, label: tag }))}
+                    selected={form.watch('tags') || []}
+                    onChange={(selected) => form.setValue('tags', selected)}
+                    placeholder="Select tags..."
+                 />
+                 <p className="text-xs text-muted-foreground">Select one or more tags to help users filter.</p>
+            </div>
+        )}
 
         <div className="grid gap-3">
             <Label>Service Type</Label>
@@ -639,7 +669,7 @@ function ManageLinksPageComponent() {
         {/* ADD DIALOG */}
         <Dialog open={isAddDialogOpen} onOpenChange={(isOpen) => {
             if (!isOpen) {
-                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: undefined, tags: '' });
+                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: undefined, tags: [] });
                 setEditingService(null);
             }
             setIsAddDialogOpen(isOpen);
@@ -673,7 +703,7 @@ function ManageLinksPageComponent() {
         {/* EDIT DIALOG */}
         <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => {
             if (!isOpen) {
-                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: undefined, tags: '' });
+                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: undefined, tags: [] });
                 setEditingService(null);
             }
             setIsEditDialogOpen(isOpen);
@@ -704,6 +734,66 @@ function ManageLinksPageComponent() {
       
     </div>
   );
+}
+
+interface MultiSelectProps {
+    options: { value: string; label: string }[];
+    selected: string[];
+    onChange: (selected: string[]) => void;
+    className?: string;
+    placeholder?: string;
+}
+
+function MultiSelect({ options, selected, onChange, className, placeholder = "Select..." }: MultiSelectProps) {
+    const [open, setOpen] = useState(false)
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between"
+          >
+            <span className="truncate">
+                {selected.length === 0 && placeholder}
+                {selected.length === 1 && selected[0]}
+                {selected.length > 1 && `${selected.length} selected`}
+            </span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+          <Command>
+            <CommandInput placeholder="Search tags..." />
+            <CommandEmpty>No tag found.</CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={option.value}
+                  onSelect={(currentValue) => {
+                    const newSelected = selected.includes(currentValue)
+                      ? selected.filter((item) => item !== currentValue)
+                      : [...selected, currentValue]
+                    onChange(newSelected)
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      selected.includes(option.value) ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {option.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    )
 }
 
 

@@ -39,9 +39,9 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, Check, Trash2, Loader2, PlusCircle, Link as LinkIcon, Layers, FileClock, AlertCircle, Save, Clock, Pencil, Edit, BookText, Info } from 'lucide-react';
+import { ExternalLink, Check, Trash2, Loader2, PlusCircle, Link as LinkIcon, Layers, FileClock, AlertCircle, Save, Clock, Pencil, Edit, BookText, Info, ChevronsUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, doc, deleteDoc, updateDoc, query, orderBy, getCountFromServer, where, addDoc } from 'firebase/firestore';
 import {
@@ -53,6 +53,18 @@ import {
   categoryConverter,
   type Category,
 } from '@/lib/data';
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+  } from "@/components/ui/command"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+  } from "@/components/ui/popover"
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { useForm, type SubmitHandler } from 'react-hook-form';
@@ -60,6 +72,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { COUNTRIES, type State } from '@/lib/countries';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { cn } from '@/lib/utils';
+import { CATEGORY_TAGS } from '@/lib/category-tags';
 
 
 type GroupedReports = {
@@ -83,7 +97,7 @@ const serviceFormSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
   address: z.string().optional(),
-  tags: z.string().optional(),
+  tags: z.array(z.string()).optional(),
 }).refine(data => {
     if (data.serviceType === 'guide') {
         return !!data.steps && data.steps.length > 10;
@@ -121,11 +135,14 @@ function AdminPage() {
     resolver: zodResolver(serviceFormSchema),
     defaultValues: {
       verified: false,
+      tags: [],
     }
   });
 
   const selectedCountry = form.watch('country');
   const serviceType = form.watch('serviceType');
+  const selectedCategorySlug = form.watch('categorySlug');
+  const availableTags = useMemo(() => CATEGORY_TAGS[selectedCategorySlug] || [], [selectedCategorySlug]);
 
   useEffect(() => {
     const countryData = COUNTRIES.find((c) => c.code === selectedCountry);
@@ -134,6 +151,10 @@ function AdminPage() {
         form.setValue('state', undefined);
     }
   }, [selectedCountry, form, reviewingSubmission]);
+
+  useEffect(() => {
+    form.setValue('tags', []);
+  }, [selectedCategorySlug, form]);
 
 
   useEffect(() => {
@@ -230,7 +251,7 @@ function AdminPage() {
         steps: '',
         verified: false,
         serviceType: undefined, // Force user to select
-        tags: '',
+        tags: [],
     });
     setIsReviewDialogOpen(true);
   }
@@ -246,18 +267,18 @@ function AdminPage() {
 
     const serviceData = {
         ...data,
-        tags: data.tags?.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) || [],
-        steps: data.serviceType === 'guide' ? data.steps?.split('\n').filter((step) => step.trim() !== '') : null,
-        phone: data.serviceType === 'info' ? data.phone : null,
-        email: data.serviceType === 'info' ? data.email : null,
-        address: data.serviceType === 'info' ? data.address : null,
+        tags: data.tags || [],
+        steps: data.serviceType === 'guide' ? data.steps?.split('\n').filter((step) => step.trim() !== '') : undefined,
+        phone: data.serviceType === 'info' ? data.phone : undefined,
+        email: data.serviceType === 'info' ? data.email : undefined,
+        address: data.serviceType === 'info' ? data.address : undefined,
         status: 'published' as const,
         verified: data.verified || false,
     };
 
     try {
         const servicesCol = collection(db, 'services').withConverter(serviceConverter);
-        await addDoc(servicesCol, serviceData);
+        await addDoc(servicesCol, serviceConverter.toFirestore(serviceData));
         await deleteDoc(doc(db, 'submissions', reviewingSubmission.id));
 
         toast({
@@ -363,11 +384,18 @@ function AdminPage() {
             {form.formState.errors.description && <p className="text-sm text-destructive">{form.formState.errors.description.message}</p>}
         </div>
         
-        <div className="grid gap-3">
-            <Label htmlFor="tags">Tags</Label>
-            <Input id="tags" type="text" placeholder="e.g. consultancy, college, ielts" {...form.register('tags')} />
-            <p className="text-xs text-muted-foreground">Separate tags with a comma. These are used for filtering within a category.</p>
-        </div>
+        {availableTags.length > 0 && (
+            <div className="grid gap-3">
+                <Label>Tags / Sub-categories</Label>
+                <MultiSelect
+                    options={availableTags.map(tag => ({ value: tag, label: tag }))}
+                    selected={form.watch('tags') || []}
+                    onChange={(selected) => form.setValue('tags', selected)}
+                    placeholder="Select tags..."
+                 />
+                 <p className="text-xs text-muted-foreground">Select one or more tags to help users filter.</p>
+            </div>
+        )}
 
          <div className="grid gap-3">
             <Label>Service Type</Label>
@@ -667,6 +695,66 @@ function AdminPage() {
 
     </div>
   );
+}
+
+interface MultiSelectProps {
+    options: { value: string; label: string }[];
+    selected: string[];
+    onChange: (selected: string[]) => void;
+    className?: string;
+    placeholder?: string;
+}
+
+function MultiSelect({ options, selected, onChange, className, placeholder = "Select..." }: MultiSelectProps) {
+    const [open, setOpen] = useState(false)
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between"
+          >
+            <span className="truncate">
+                {selected.length === 0 && placeholder}
+                {selected.length === 1 && selected[0]}
+                {selected.length > 1 && `${selected.length} selected`}
+            </span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+          <Command>
+            <CommandInput placeholder="Search tags..." />
+            <CommandEmpty>No tag found.</CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={option.value}
+                  onSelect={(currentValue) => {
+                    const newSelected = selected.includes(currentValue)
+                      ? selected.filter((item) => item !== currentValue)
+                      : [...selected, currentValue]
+                    onChange(newSelected)
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      selected.includes(option.value) ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {option.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    )
 }
 
 export default AdminPage;

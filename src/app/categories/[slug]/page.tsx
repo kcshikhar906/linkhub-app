@@ -12,6 +12,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { CATEGORY_TAGS } from '@/lib/category-tags';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Search } from 'lucide-react';
 
 type CategoryPageProps = {
   params: {
@@ -28,7 +32,12 @@ export default function CategoryPage({ params }: CategoryPageProps) {
   const [category, setCategory] = useState<Category | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  
+  // Filtering state
+  const [selectedTag, setSelectedTag] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const availableTags = useMemo(() => CATEGORY_TAGS[slug] || [], [slug]);
 
   useEffect(() => {
     async function fetchData() {
@@ -50,35 +59,43 @@ export default function CategoryPage({ params }: CategoryPageProps) {
           where("country", "==", country),
       ];
 
-      if (state) {
-          conditions.push(where("state", "==", state));
-      }
-
+      // Note: Firestore does not support inequality checks on different fields.
+      // So, we fetch all for the country and then filter for state if needed.
+      // This is less optimal but works for this structure.
       const servicesQuery = query(collection(db, "services"), ...conditions);
-      const servicesSnapshot = await getDocs(servicesQuery.withConverter(serviceConverter));
-      setServices(servicesSnapshot.docs.map(doc => doc.data()));
+      let servicesSnapshot = await getDocs(servicesQuery.withConverter(serviceConverter));
+
+      let fetchedServices = servicesSnapshot.docs.map(doc => doc.data());
+      
+      // If a state is selected, filter the results further on the client.
+      if (state) {
+        fetchedServices = fetchedServices.filter(service => service.state === state);
+      }
+      
+      setServices(fetchedServices);
 
       setLoading(false);
-      setSelectedTag(null); // Reset tag on data change
+      setSelectedTag(''); // Reset filters
+      setSearchTerm('');
     }
 
     fetchData();
   }, [slug, country, state]);
 
-  const allTags = useMemo(() => {
-    const tags = new Set<string>();
-    services.forEach(service => {
-        service.tags?.forEach(tag => tags.add(tag));
-    });
-    return Array.from(tags).sort();
-  }, [services]);
 
   const filteredServices = useMemo(() => {
-    if (!selectedTag) {
-        return services;
-    }
-    return services.filter(service => service.tags?.includes(selectedTag));
-  }, [services, selectedTag]);
+    return services.filter(service => {
+        // Tag filter
+        const tagMatch = selectedTag === '' || (service.tags && service.tags.includes(selectedTag));
+
+        // Search term filter
+        const searchMatch = searchTerm === '' || 
+            service.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            service.description.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        return tagMatch && searchMatch;
+    });
+  }, [services, selectedTag, searchTerm]);
 
   if (loading) {
     return (
@@ -91,6 +108,10 @@ export default function CategoryPage({ params }: CategoryPageProps) {
               <Skeleton className="h-10 w-64" />
             </div>
             <Skeleton className="h-6 w-48 mb-8" />
+             <div className="flex gap-4 mb-8">
+                <Skeleton className="h-10 w-48" />
+                <Skeleton className="h-10 flex-1" />
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Skeleton className="h-64 w-full" />
                 <Skeleton className="h-64 w-full" />
@@ -124,16 +145,34 @@ export default function CategoryPage({ params }: CategoryPageProps) {
           </div>
           {locationName && <p className="text-muted-foreground mb-8">Showing services for {locationName}</p>}
           
-          {allTags.length > 0 && (
-            <div className="mb-8 flex items-center flex-wrap gap-2">
-                <Button variant={!selectedTag ? 'default' : 'outline'} onClick={() => setSelectedTag(null)}>All</Button>
-                {allTags.map(tag => (
-                    <Button key={tag} variant={selectedTag === tag ? 'default' : 'outline'} onClick={() => setSelectedTag(tag)}>
-                        {tag}
-                    </Button>
-                ))}
+          {/* Filter Bar */}
+          <div className="flex flex-col md:flex-row gap-4 mb-8">
+            {availableTags.length > 0 && (
+                <Select value={selectedTag} onValueChange={setSelectedTag}>
+                    <SelectTrigger className="w-full md:w-[240px]">
+                        <SelectValue placeholder="Filter by sub-category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="">All Sub-categories</SelectItem>
+                        {availableTags.map(tag => (
+                            <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            )}
+             <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                type="search"
+                placeholder="Search within this category..."
+                className="pl-10 h-10 w-full"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                aria-label="Search services"
+                />
             </div>
-          )}
+          </div>
+
 
           {filteredServices.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -144,7 +183,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
           ) : (
             <div className="text-center py-16 bg-card rounded-lg shadow-sm">
               <p className="text-muted-foreground">
-                There are no services listed in this category for the selected region{selectedTag ? ` with the tag "${selectedTag}"` : ''} yet.
+                There are no services that match your criteria in this category for the selected region.
               </p>
             </div>
           )}

@@ -33,10 +33,10 @@ export type Service = {
   state?: string; // e.g., 'NSW', 'VIC'
   verified?: boolean;
   serviceType: 'guide' | 'info';
-  steps?: string[];
-  phone?: string;
-  email?: string;
-  address?: string;
+  steps?: string[] | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
   tags?: string[];
 };
 
@@ -123,30 +123,21 @@ export const serviceConverter = {
         };
     },
     toFirestore: (service: Partial<Service>): DocumentData => {
-        // Create a copy to avoid modifying the original object
-        const serviceData = { ...service };
-
+        const dataToUpdate: DocumentData = { ...service };
+        
         // Ensure type-specific fields are null if not applicable
-        if (serviceData.serviceType === 'guide') {
-            serviceData.phone = null;
-            serviceData.email = null;
-            serviceData.address = null;
-            serviceData.steps = serviceData.steps || [];
-        } else if (serviceData.serviceType === 'info') {
-            serviceData.steps = null;
-            serviceData.phone = serviceData.phone || null;
-            serviceData.email = serviceData.email || null;
-            serviceData.address = serviceData.address || null;
+        if (service.serviceType === 'guide') {
+            dataToUpdate.phone = null;
+            dataToUpdate.email = null;
+            dataToUpdate.address = null;
+        } else if (service.serviceType === 'info') {
+            dataToUpdate.steps = null;
         }
-
-        // Firestore does not allow `undefined` values.
-        // We can remove them, but it's better practice for updates
-        // to explicitly set unused fields to null.
-        const dataToUpdate: DocumentData = {};
-        for (const key in serviceData) {
-            const value = (serviceData as any)[key];
-            if (value !== undefined) {
-                dataToUpdate[key] = value;
+        
+        // Convert undefined to null for all relevant fields
+        for (const key of ['steps', 'phone', 'email', 'address', 'state', 'tags']) {
+            if (dataToUpdate[key] === undefined) {
+                dataToUpdate[key] = null;
             }
         }
         
