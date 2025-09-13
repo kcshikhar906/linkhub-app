@@ -38,6 +38,7 @@ export type Service = {
   email?: string | null;
   address?: string | null;
   tags?: string[];
+  iconDataUri?: string | null;
 };
 
 export type Category = {
@@ -119,6 +120,7 @@ export const serviceConverter = {
             email: data.email,
             address: data.address,
             tags: data.tags || [],
+            iconDataUri: data.iconDataUri,
         };
     },
     toFirestore: (service: Partial<Service>): DocumentData => {
@@ -134,7 +136,7 @@ export const serviceConverter = {
         }
         
         // Convert undefined to null for all relevant fields
-        for (const key of ['steps', 'phone', 'email', 'address', 'state', 'tags']) {
+        for (const key of ['steps', 'phone', 'email', 'address', 'state', 'tags', 'iconDataUri']) {
             if (dataToUpdate[key] === undefined) {
                 dataToUpdate[key] = null;
             }

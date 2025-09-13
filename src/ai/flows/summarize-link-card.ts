@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { generateIcon } from './generate-icon-flow';
 
 const SummarizeLinkCardInputSchema = z.object({
   url: z.string().url().describe('The URL of the official website content.'),
@@ -20,6 +21,7 @@ const SummarizeLinkCardOutputSchema = z.object({
   title: z.string().describe('A concise, user-friendly title for the service.'),
   description: z.string().describe('A plain-English description of the service.'),
   steps: z.array(z.string()).describe('A step-by-step guide on how to use the service.'),
+  iconDataUri: z.string().optional().describe('A data URI for a generated icon representing the service.'),
 });
 export type SummarizeLinkCardOutput = z.infer<typeof SummarizeLinkCardOutputSchema>;
 
@@ -55,7 +57,14 @@ const summarizeLinkCardFlow = ai.defineFlow(
     outputSchema: SummarizeLinkCardOutputSchema,
   },
   async input => {
-    const {output} = await summarizeLinkCardPrompt(input);
-    return output!;
+    const [summary, icon] = await Promise.all([
+        summarizeLinkCardPrompt(input),
+        generateIcon(input),
+    ]);
+    
+    return {
+      ...summary.output!,
+      iconDataUri: icon.iconDataUri,
+    };
   }
 );
