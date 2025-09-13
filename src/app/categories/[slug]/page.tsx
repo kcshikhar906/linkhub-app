@@ -29,7 +29,7 @@ function CategoryPageClient({ slug }: CategoryPageClientProps) {
   const [loading, setLoading] = useState(true);
   
   // Filtering state
-  const [selectedTag, setSelectedTag] = useState<string>('');
+  const [selectedTag, setSelectedTag] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
 
   const availableTags = useMemo(() => CATEGORY_TAGS[slug] || [], [slug]);
@@ -72,7 +72,7 @@ function CategoryPageClient({ slug }: CategoryPageClientProps) {
       setServices(fetchedServices);
 
       setLoading(false);
-      setSelectedTag('');
+      setSelectedTag('ALL');
       setSearchTerm('');
     }
 
@@ -82,7 +82,7 @@ function CategoryPageClient({ slug }: CategoryPageClientProps) {
 
   const filteredServices = useMemo(() => {
     return services.filter(service => {
-        const tagMatch = selectedTag === '' || (service.tags && service.tags.includes(selectedTag));
+        const tagMatch = selectedTag === 'ALL' || (service.tags && service.tags.includes(selectedTag));
         const searchMatch = searchTerm === '' || 
             service.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             service.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -146,7 +146,7 @@ function CategoryPageClient({ slug }: CategoryPageClientProps) {
                         <SelectValue placeholder="Filter by sub-category" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="">All Sub-categories</SelectItem>
+                        <SelectItem value="ALL">All Sub-categories</SelectItem>
                         {availableTags.map(tag => (
                             <SelectItem key={tag} value={tag}>{tag}</SelectItem>
                         ))}
