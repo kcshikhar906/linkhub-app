@@ -119,7 +119,6 @@ export const CATEGORY_TAGS: { [key: string]: string[] } = {
   // Emergency Services
   'emergency-services': [
     'Police',
-toLocaleLowerCase(),
     'Ambulance',
     'Fire & Rescue',
     'Poisons Information',
