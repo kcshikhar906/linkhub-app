@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth } from '@/context/auth-context';
@@ -163,11 +164,19 @@ function AdminPage() {
 
     fetchStats();
 
-    const submissionsQuery = query(collection(db, 'submissions'), where('status', '==', 'pending'), orderBy('title'));
+    // Fetch all submissions ordered by title
+    const submissionsQuery = query(collection(db, 'submissions'), orderBy('title'));
     const submissionsUnsubscribe = onSnapshot(submissionsQuery.withConverter(
       submissionConverter
     ), (snapshot) => {
-      setSubmissions(snapshot.docs.map((doc) => doc.data()));
+      // Filter for 'pending' status on the client side
+      const pendingSubmissions = snapshot.docs
+        .map((doc) => doc.data())
+        .filter(sub => sub.status === 'pending');
+      setSubmissions(pendingSubmissions);
+      setLoadingSubmissions(false);
+    }, (error) => {
+      console.error("Error fetching submissions:", error);
       setLoadingSubmissions(false);
     });
     
@@ -570,3 +579,5 @@ function AdminPage() {
 }
 
 export default AdminPage;
+
+    
