@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth } from '@/context/auth-context';
@@ -76,7 +77,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
 import { CATEGORY_TAGS } from '@/lib/category-tags';
 import { summarizeLinkCard } from '@/ai/flows/summarize-link-card';
-import { Skeleton } from '../ui/skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 type GroupedReports = {
