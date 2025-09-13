@@ -52,7 +52,7 @@ export default function LoginPage() {
     <div className="container mx-auto flex min-h-screen flex-col items-center justify-center px-4">
         <div className="mb-8 text-center">
             <Link href="/" className="flex items-center gap-2 font-bold justify-center">
-                <LinkHubLogo className="h-8 w-8 text-primary" />
+                <LinkHubLogo size={32} />
                 <span className="font-headline text-2xl">LinkHub</span>
             </Link>
         </div>
