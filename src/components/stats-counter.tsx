@@ -3,7 +3,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useInView, useMotionValue, useSpring, animate } from 'framer-motion';
-import { Briefcase, Landmark, UserCheck, LucideIcon } from 'lucide-react';
+import { Briefcase, Landmark, UserCheck, LucideIcon, Globe, Layers } from 'lucide-react';
 
 interface StatItemProps {
   icon: LucideIcon;
@@ -13,20 +13,22 @@ interface StatItemProps {
 
 function StatItem({ icon: Icon, to, label }: StatItemProps) {
   const count = useMotionValue(0);
-  const rounded = useSpring(count, { mass: 0.8, stiffness: 75, damping: 15 });
+  // Using a stiffer spring for a faster, "odometer-like" effect
+  const rounded = useSpring(count, { mass: 0.5, stiffness: 100, damping: 20 });
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: '-50px' });
 
   useEffect(() => {
     if (inView) {
       const controls = animate(count, to, {
-        duration: 2,
+        duration: 1.5, // Faster animation duration
+        ease: 'easeOut',
         onComplete: () => {
           // Start the "live" increment effect after the initial animation
           const interval = setInterval(() => {
-            const increment = Math.floor(Math.random() * 3) + 1;
+            const increment = Math.floor(Math.random() * 2) + 1;
             count.set(count.get() + increment);
-          }, 3000 + Math.random() * 2000); // every 3-5 seconds
+          }, 4000 + Math.random() * 2000); // every 4-6 seconds
 
           return () => clearInterval(interval);
         },
@@ -59,12 +61,14 @@ export function StatsCounter() {
     { icon: Briefcase, to: 560, label: 'Services Listed' },
     { icon: Landmark, to: 480, label: 'Government Agencies' },
     { icon: UserCheck, to: 620, label: 'Verified Sources' },
+    { icon: Layers, to: 20, label: 'Active Categories' },
+    { icon: Globe, to: 2, label: 'Countries Covered' },
   ];
 
   return (
     <section className="py-12 md:py-20 bg-muted/50">
       <div className="container mx-auto">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-8">
           {stats.map((stat) => (
             <StatItem key={stat.label} {...stat} />
           ))}
