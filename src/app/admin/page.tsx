@@ -41,7 +41,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, Check, Trash2, Loader2, PlusCircle, Link as LinkIcon, Layers, FileClock, AlertCircle, Save, Clock, Pencil, Edit } from 'lucide-react';
+import { ExternalLink, Check, Trash2, Loader2, PlusCircle, Link as LinkIcon, Layers, FileClock, AlertCircle, Save, Clock, Pencil, Edit, BookText, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
@@ -61,6 +61,7 @@ import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { COUNTRIES, type State } from '@/lib/countries';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 
 type GroupedReports = {
@@ -76,10 +77,22 @@ const serviceFormSchema = z.object({
   link: z.string().url(),
   categorySlug: z.string({ required_error: 'Please select a category.' }),
   description: z.string().min(10),
-  steps: z.string().min(10),
   country: z.string({ required_error: 'Please select a country.' }),
   state: z.string().optional(),
   verified: z.boolean().optional(),
+  serviceType: z.enum(['guide', 'info'], { required_error: 'You must select a service type.' }),
+  steps: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email().optional().or(z.literal('')),
+  address: z.string().optional(),
+}).refine(data => {
+    if (data.serviceType === 'guide') {
+        return !!data.steps && data.steps.length > 10;
+    }
+    return true;
+}, {
+    message: 'Steps are required for a guide.',
+    path: ['steps'],
 });
 
 type ServiceFormValues = z.infer<typeof serviceFormSchema>;
@@ -113,6 +126,7 @@ function AdminPage() {
   });
 
   const selectedCountry = form.watch('country');
+  const serviceType = form.watch('serviceType');
 
   useEffect(() => {
     const countryData = COUNTRIES.find((c) => c.code === selectedCountry);
@@ -216,6 +230,7 @@ function AdminPage() {
         description: '', 
         steps: '',
         verified: false,
+        serviceType: undefined, // Force user to select
     });
     setIsReviewDialogOpen(true);
   }
@@ -231,7 +246,10 @@ function AdminPage() {
 
     const serviceData = {
         ...data,
-        steps: data.steps.split('\n').filter(Boolean),
+        steps: data.serviceType === 'guide' ? data.steps?.split('\n').filter((step) => step.trim() !== '') : undefined,
+        phone: data.serviceType === 'info' ? data.phone : undefined,
+        email: data.serviceType === 'info' ? data.email : undefined,
+        address: data.serviceType === 'info' ? data.address : undefined,
         status: 'published' as const,
         verified: data.verified || false,
     };
@@ -343,11 +361,60 @@ function AdminPage() {
             <Textarea id="description" placeholder="A brief explanation of the service." {...form.register('description')} />
             {form.formState.errors.description && <p className="text-sm text-destructive">{form.formState.errors.description.message}</p>}
         </div>
-        <div className="grid gap-3">
-            <Label htmlFor="steps">Steps (one per line)</Label>
-            <Textarea id="steps" rows={5} placeholder="Step 1...\nStep 2...\nStep 3..." {...form.register('steps')} />
-            {form.formState.errors.steps && <p className="text-sm text-destructive">{form.formState.errors.steps.message}</p>}
+         <div className="grid gap-3">
+            <Label>Service Type</Label>
+             <ToggleGroup
+                type="single"
+                value={serviceType}
+                onValueChange={(value: 'guide' | 'info') => {
+                    if (value) form.setValue('serviceType', value)
+                }}
+                className="grid grid-cols-2"
+                >
+                <ToggleGroupItem value="guide" aria-label="Select guide type">
+                    <BookText className="mr-2 h-4 w-4" />
+                    Guide
+                </ToggleGroupItem>
+                <ToggleGroupItem value="info" aria-label="Select info type">
+                    <Info className="mr-2 h-4 w-4" />
+                    Info
+                </ToggleGroupItem>
+            </ToggleGroup>
+            {form.formState.errors.serviceType && <p className="text-sm text-destructive">{form.formState.errors.serviceType.message}</p>}
         </div>
+        
+        {serviceType === 'guide' && (
+            <div className="grid gap-3">
+                <Label htmlFor="steps">Steps (one per line)</Label>
+                <Textarea id="steps" rows={5} placeholder="Step 1...\nStep 2...\nStep 3..." {...form.register('steps')} />
+                {form.formState.errors.steps && <p className="text-sm text-destructive">{form.formState.errors.steps.message}</p>}
+            </div>
+        )}
+        
+        {serviceType === 'info' && (
+            <div className="space-y-4 rounded-md border p-4">
+                <h4 className="font-medium text-sm">Contact Information</h4>
+                 <div className="grid gap-3">
+                    <Label htmlFor="phone">Phone Number</Label>
+                     <div className="relative">
+                        <Input id="phone" type="tel" placeholder="e.g., (02) 1234 5678" {...form.register('phone')} />
+                     </div>
+                </div>
+                 <div className="grid gap-3">
+                    <Label htmlFor="email">Email Address</Label>
+                     <div className="relative">
+                        <Input id="email" type="email" placeholder="e.g., contact@business.com.au" {...form.register('email')} />
+                     </div>
+                    {form.formState.errors.email && <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>}
+                </div>
+                 <div className="grid gap-3">
+                    <Label htmlFor="address">Physical Address</Label>
+                     <div className="relative">
+                        <Input id="address" type="text" placeholder="e.g., 123 Example St, Sydney NSW 2000" {...form.register('address')} />
+                    </div>
+                </div>
+            </div>
+        )}
         <div className="flex items-center space-x-2">
             <Checkbox id="verified" checked={form.watch('verified')} onCheckedChange={(checked) => form.setValue('verified', !!checked)} />
             <Label htmlFor="verified" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">

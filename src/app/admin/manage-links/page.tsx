@@ -33,7 +33,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   type Category,
   type Service,
@@ -58,6 +58,8 @@ import {
   Mail,
   Phone,
   MapPin,
+  BookText,
+  Info,
 } from 'lucide-react';
 import {
   Select,
@@ -84,6 +86,7 @@ import {
   getDoc,
 } from 'firebase/firestore';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 const formSchema = z.object({
   title: z.string().min(5),
@@ -139,7 +142,6 @@ function ManageLinksPageComponent() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       verified: false,
-      serviceType: 'guide',
     }
   });
 
@@ -274,7 +276,7 @@ function ManageLinksPageComponent() {
             });
             setIsAddDialogOpen(false);
         }
-        form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: 'guide' });
+        form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: undefined });
         
     } catch (error) {
       console.error('Error saving service: ', error);
@@ -551,20 +553,23 @@ function ManageLinksPageComponent() {
 
         <div className="grid gap-3">
             <Label>Service Type</Label>
-            <RadioGroup
-                defaultValue={serviceType}
-                onValueChange={(value: 'guide' | 'info') => form.setValue('serviceType', value)}
-                className="flex gap-4"
-            >
-                <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="guide" id="r1" />
-                    <Label htmlFor="r1">Guide (with steps)</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="info" id="r2" />
-                    <Label htmlFor="r2">Info (with contact details)</Label>
-                </div>
-            </RadioGroup>
+             <ToggleGroup
+                type="single"
+                value={serviceType}
+                onValueChange={(value: 'guide' | 'info') => {
+                    if (value) form.setValue('serviceType', value)
+                }}
+                className="grid grid-cols-2"
+                >
+                <ToggleGroupItem value="guide" aria-label="Select guide type">
+                    <BookText className="mr-2 h-4 w-4" />
+                    Guide
+                </ToggleGroupItem>
+                <ToggleGroupItem value="info" aria-label="Select info type">
+                    <Info className="mr-2 h-4 w-4" />
+                    Info
+                </ToggleGroupItem>
+            </ToggleGroup>
             {form.formState.errors.serviceType && <p className="text-sm text-destructive">{form.formState.errors.serviceType.message}</p>}
         </div>
         
@@ -627,7 +632,7 @@ function ManageLinksPageComponent() {
         {/* ADD DIALOG */}
         <Dialog open={isAddDialogOpen} onOpenChange={(isOpen) => {
             if (!isOpen) {
-                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: 'guide' });
+                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: undefined });
                 setEditingService(null);
             }
             setIsAddDialogOpen(isOpen);
@@ -661,7 +666,7 @@ function ManageLinksPageComponent() {
         {/* EDIT DIALOG */}
         <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => {
             if (!isOpen) {
-                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: 'guide' });
+                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: undefined });
                 setEditingService(null);
             }
             setIsEditDialogOpen(isOpen);
