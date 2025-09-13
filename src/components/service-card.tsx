@@ -7,6 +7,7 @@ import { ShieldCheck, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { COUNTRIES } from '@/lib/countries';
 import Image from 'next/image';
+import { useState } from 'react';
 
 interface ServiceCardProps {
     service: Service;
@@ -19,6 +20,10 @@ export function ServiceCard({ service, onClick, className }: ServiceCardProps) {
     const stateData = countryData?.states.find(s => s.code === service.state);
     const location = stateData ? stateData.name : countryData?.name;
     
+    const [logoError, setLogoError] = useState(false);
+    const faviconUrl = `https://www.google.com/s2/favicons?sz=64&domain_url=${service.link}`;
+    const showFavicon = !logoError;
+    
     return (
         <Card 
             className={cn("cursor-pointer flex flex-col transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-1 hover:border-primary", className)}
@@ -29,13 +34,22 @@ export function ServiceCard({ service, onClick, className }: ServiceCardProps) {
             aria-label={`View details for ${service.title}`}
         >
             <CardHeader className="flex-row gap-4 items-start">
-                 {service.iconDataUri ? (
-                    <Image src={service.iconDataUri} alt={`${service.title} icon`} width={40} height={40} className="rounded-sm" />
-                ) : (
-                    <div className="w-10 h-10 flex-shrink-0 bg-secondary rounded-sm flex items-center justify-center">
+                 <div className="w-10 h-10 flex-shrink-0 bg-secondary rounded-sm flex items-center justify-center">
+                    {showFavicon ? (
+                        <Image 
+                            src={faviconUrl} 
+                            alt={`${service.title} logo`}
+                            width={40}
+                            height={40}
+                            className="rounded-sm"
+                            onError={() => setLogoError(true)}
+                        />
+                    ) : service.iconDataUri ? (
+                        <Image src={service.iconDataUri} alt={`${service.title} icon`} width={40} height={40} className="rounded-sm" />
+                    ) : (
                         <ImageIcon className="w-5 h-5 text-muted-foreground" />
-                    </div>
-                )}
+                    )}
+                 </div>
                 <div className="flex-1">
                     <CardTitle className="text-base font-semibold leading-snug">{service.title}</CardTitle>
                 </div>

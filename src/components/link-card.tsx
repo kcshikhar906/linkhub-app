@@ -33,10 +33,14 @@ interface LinkCardProps {
 export function LinkCard({ service }: LinkCardProps) {
   const { toast } = useToast();
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [logoError, setLogoError] = useState(false);
 
   const countryData = COUNTRIES.find(c => c.code === service.country);
   const stateData = countryData?.states.find(s => s.code === service.state);
   const location = stateData ? `${stateData.name}, ${countryData?.name}` : countryData?.name;
+  
+  const faviconUrl = `https://www.google.com/s2/favicons?sz=64&domain_url=${service.link}`;
+  const showFavicon = !logoError;
 
 
   const handleCopyLink = () => {
@@ -74,13 +78,22 @@ export function LinkCard({ service }: LinkCardProps) {
       />
         <CardHeader>
           <div className="flex items-start gap-4">
-             {service.iconDataUri ? (
-                <Image src={service.iconDataUri} alt={`${service.title} icon`} width={56} height={56} className="rounded-md" />
-             ) : (
-                <div className="w-14 h-14 flex-shrink-0 bg-secondary rounded-md flex items-center justify-center">
+             <div className="w-14 h-14 flex-shrink-0 bg-secondary rounded-md flex items-center justify-center">
+                {showFavicon ? (
+                    <Image 
+                        src={faviconUrl} 
+                        alt={`${service.title} logo`} 
+                        width={56} 
+                        height={56} 
+                        className="rounded-md"
+                        onError={() => setLogoError(true)}
+                    />
+                ) : service.iconDataUri ? (
+                    <Image src={service.iconDataUri} alt={`${service.title} icon`} width={56} height={56} className="rounded-md" />
+                ) : (
                     <ImageIcon className="w-8 h-8 text-muted-foreground" />
-                </div>
-             )}
+                )}
+            </div>
              <div className="flex-1">
                 <CardTitle className="font-headline text-xl">{service.title}</CardTitle>
                 <div className="flex items-center flex-wrap gap-2 mt-2">
