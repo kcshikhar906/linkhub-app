@@ -63,6 +63,7 @@ import {
   FileText,
   Tags,
   Map,
+  ExternalLink,
 } from 'lucide-react';
 import {
   Select,
@@ -103,6 +104,8 @@ import {
 import { useSearchParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { CATEGORY_TAGS } from '@/lib/category-tags';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 const formSchema = z.object({
   title: z.string().min(5),
@@ -145,7 +148,10 @@ function ManageLinksPageComponent() {
   // Dialog states
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [viewingService, setViewingService] = useState<Service | null>(null);
+
 
   // View management state
   const [currentView, setCurrentView] = useState<'categories' | 'links'>('categories');
@@ -182,9 +188,23 @@ function ManageLinksPageComponent() {
     form.setValue('tags', []);
   }, [selectedCategorySlug, form]);
 
+  const openViewDialog = (service: Service) => {
+    setViewingService(service);
+    setIsViewDialogOpen(true);
+  };
+
+  const openEditDialogFromView = () => {
+    if (viewingService) {
+      openEditDialog(viewingService);
+      setIsViewDialogOpen(false); // Close view dialog
+    }
+  };
+
+
   const openEditDialog = async (serviceOrId: Service | string) => {
     let service: Service | null = null;
     if (typeof serviceOrId === 'string') {
+        setIsLoading(true);
         try {
             const serviceRef = doc(db, 'services', serviceOrId).withConverter(serviceConverter);
             const serviceSnap = await getDoc(serviceRef);
@@ -192,12 +212,15 @@ function ManageLinksPageComponent() {
                 service = serviceSnap.data();
             } else {
                  toast({ variant: 'destructive', title: 'Error', description: 'Service not found.' });
+                 setIsLoading(false);
                  return;
             }
         } catch (error) {
              toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch service.' });
+             setIsLoading(false);
              return;
         }
+        setIsLoading(false);
     } else {
         service = serviceOrId;
     }
@@ -427,6 +450,7 @@ function ManageLinksPageComponent() {
                                 </TableCell>
                                 <TableCell>
                                 <div className="flex gap-2 justify-end">
+                                    <Button variant="outline" size="icon" onClick={() => openViewDialog(service)}><Eye className="h-4 w-4"/></Button>
                                     <Button variant="outline" size="icon" onClick={() => openEditDialog(service)}><Edit className="h-4 w-4"/></Button>
                                     <Button variant="outline" size="icon" onClick={() => handleToggleStatus(service)}>{service.status === 'published' ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}</Button>
                                     <Button variant="destructive" size="icon" onClick={() => handleDelete(service.id, service.title)}><Trash2  className="h-4 w-4"/></Button>
@@ -459,6 +483,7 @@ function ManageLinksPageComponent() {
                                  </div>
                             </CardHeader>
                              <CardFooter className="flex gap-2 justify-end mt-auto pt-4">
+                                <Button variant="outline" size="icon" onClick={() => openViewDialog(service)}><Eye className="h-4 w-4"/></Button>
                                 <Button variant="outline" size="icon" onClick={() => openEditDialog(service)}><Edit className="h-4 w-4"/></Button>
                                 <Button variant="outline" size="icon" onClick={() => handleToggleStatus(service)}>{service.status === 'published' ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}</Button>
                                 <Button variant="destructive" size="icon" onClick={() => handleDelete(service.id, service.title)}><Trash2  className="h-4 w-4"/></Button>
@@ -757,6 +782,93 @@ function ManageLinksPageComponent() {
             </DialogContent>
         </Dialog>
 
+        {/* VIEW DIALOG */}
+        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+            <DialogContent className="sm:max-w-2xl">
+                {viewingService && (
+                    <>
+                        <DialogHeader>
+                            <DialogTitle>{viewingService.title}</DialogTitle>
+                            <DialogDescription>
+                                Read-only view of the service details. Click Edit to make changes.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <ScrollArea className="max-h-[70vh] pr-6 -mr-6">
+                            <div className="space-y-6 py-4">
+                                <div className="space-y-1">
+                                    <h4 className="font-semibold text-sm text-muted-foreground">Description</h4>
+                                    <p>{viewingService.description}</p>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <h4 className="font-semibold text-sm text-muted-foreground">Official URL</h4>
+                                    <a href={viewingService.link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all flex items-center gap-1">
+                                        {viewingService.link} <ExternalLink className="h-4 w-4" />
+                                    </a>
+                                </div>
+                                
+                                <Separator />
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <h4 className="font-semibold text-sm text-muted-foreground">Category</h4>
+                                        <p>{categories.find(c => c.slug === viewingService.categorySlug)?.name || viewingService.categorySlug}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <h4 className="font-semibold text-sm text-muted-foreground">Location</h4>
+                                        <p>{viewingService.country}{viewingService.state && `, ${viewingService.state}`}</p>
+                                    </div>
+                                     <div className="space-y-1">
+                                        <h4 className="font-semibold text-sm text-muted-foreground">Service Type</h4>
+                                        <p className="capitalize">{viewingService.serviceType}</p>
+                                    </div>
+                                     <div className="space-y-1">
+                                        <h4 className="font-semibold text-sm text-muted-foreground">Status</h4>
+                                         <Badge variant={viewingService.status === 'published' ? 'default' : 'secondary'}>{viewingService.status}</Badge>
+                                    </div>
+                                </div>
+
+                                {viewingService.tags && viewingService.tags.length > 0 && (
+                                    <div className="space-y-2">
+                                        <h4 className="font-semibold text-sm text-muted-foreground">Tags</h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {viewingService.tags.map(tag => <Badge key={tag} variant="outline">{tag}</Badge>)}
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                <Separator />
+
+                                {viewingService.serviceType === 'guide' && viewingService.steps && (
+                                    <div className="space-y-2">
+                                        <h4 className="font-semibold text-sm text-muted-foreground">Steps</h4>
+                                        <ol className="list-decimal space-y-2 pl-5">
+                                            {viewingService.steps.map((step, i) => <li key={i}>{step}</li>)}
+                                        </ol>
+                                    </div>
+                                )}
+
+                                {viewingService.serviceType === 'info' && (
+                                     <div className="space-y-3">
+                                        <h4 className="font-semibold text-sm text-muted-foreground">Contact Information</h4>
+                                        {viewingService.phone && <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-primary" /> {viewingService.phone}</p>}
+                                        {viewingService.email && <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /> {viewingService.email}</p>}
+                                        {viewingService.address && <p className="flex items-start gap-2"><MapPin className="h-4 w-4 text-primary mt-1" /> {viewingService.address}</p>}
+                                        {!viewingService.phone && !viewingService.email && !viewingService.address && <p className="text-sm text-muted-foreground">No contact information provided.</p>}
+                                    </div>
+                                )}
+
+                            </div>
+                        </ScrollArea>
+                        <DialogFooter className="pt-4 border-t">
+                            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
+                            <Button onClick={openEditDialogFromView}><Edit className="mr-2"/>Edit Service</Button>
+                        </DialogFooter>
+                    </>
+                )}
+            </DialogContent>
+        </Dialog>
+
       </div>
 
       {currentView === 'categories' ? renderCategoryView() : renderLinksView()}
@@ -828,7 +940,7 @@ function MultiSelect({ options, selected, onChange, className, placeholder = "Se
 
 export default function ManageLinksPage() {
     return (
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<div className="flex-1 text-center p-8">Loading...</div>}>
             <ManageLinksPageComponent />
         </Suspense>
     )
