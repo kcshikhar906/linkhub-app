@@ -14,6 +14,7 @@ import { ArrowRight } from 'lucide-react';
 import { TypingEffect } from '@/components/typing-effect';
 import { WelcomeGuide } from '@/components/welcome-guide';
 import { MotionLink } from '@/components/motion-link';
+import { StatsCounter } from '@/components/stats-counter';
 
 const popularSearches = [
     {
@@ -142,6 +143,8 @@ export default async function Home({ searchParams }: { searchParams: { country?:
           </div>
         </section>
       </div>
+
+      <StatsCounter />
 
       <div className="container mx-auto px-4 py-16 md:py-24">
         <section className="mb-16 md:mb-24">
