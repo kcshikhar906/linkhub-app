@@ -13,6 +13,9 @@ export const metadata: Metadata = {
   },
   description:
     'LinkHub is a clean, hyper-efficient, and universally accessible digital directory. It acts as a centralized bridge between users and essential government or institutional services by cutting through the clutter of official websites.',
+  icons: {
+    icon: '/logo/favicon.ico',
+  },
 };
 
 export default function RootLayout({

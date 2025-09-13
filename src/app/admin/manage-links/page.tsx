@@ -248,10 +248,10 @@ function ManageLinksPageComponent() {
     setIsLoading(true);
     const serviceData = {
       ...data,
-      steps: data.serviceType === 'guide' ? data.steps?.split('\n').filter((step) => step.trim() !== '') : undefined,
-      phone: data.serviceType === 'info' ? data.phone : undefined,
-      email: data.serviceType === 'info' ? data.email : undefined,
-      address: data.serviceType === 'info' ? data.address : undefined,
+      steps: data.serviceType === 'guide' ? data.steps?.split('\n').filter((step) => step.trim() !== '') : null,
+      phone: data.serviceType === 'info' ? data.phone : null,
+      email: data.serviceType === 'info' ? data.email : null,
+      address: data.serviceType === 'info' ? data.address : null,
       status: 'published' as const,
       verified: data.verified || false,
     };

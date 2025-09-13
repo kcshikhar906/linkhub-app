@@ -8,7 +8,7 @@ interface LogoProps {
 export function LinkHubLogo({ size, className }: LogoProps) {
   return (
     <Image
-      src="/logo.png"
+      src="/logo/logo.png"
       alt="LinkHub Logo"
       width={size}
       height={size}
