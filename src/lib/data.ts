@@ -121,31 +121,34 @@ export const serviceConverter = {
         };
     },
     toFirestore: (service: Partial<Service>): DocumentData => {
-        const data: DocumentData = {};
-        if (service.title !== undefined) data.title = service.title;
-        if (service.description !== undefined) data.description = service.description;
-        if (service.link !== undefined) data.link = service.link;
-        if (service.categorySlug !== undefined) data.categorySlug = service.categorySlug;
-        if (service.status !== undefined) data.status = service.status;
-        if (service.country !== undefined) data.country = service.country;
-        if (service.state !== undefined) data.state = service.state;
-        if (service.verified !== undefined) data.verified = service.verified;
-        if (service.serviceType !== undefined) data.serviceType = service.serviceType;
-        
-        // Handle type-specific fields
-        if (service.serviceType === 'guide') {
-            data.steps = service.steps || [];
-            data.phone = null;
-            data.email = null;
-            data.address = null;
-        } else if (service.serviceType === 'info') {
-            data.steps = null;
-            data.phone = service.phone || null;
-            data.email = service.email || null;
-            data.address = service.address || null;
+        // Create a copy to avoid modifying the original object
+        const serviceData = { ...service };
+
+        // Ensure type-specific fields are null if not applicable
+        if (serviceData.serviceType === 'guide') {
+            serviceData.phone = null;
+            serviceData.email = null;
+            serviceData.address = null;
+            serviceData.steps = serviceData.steps || [];
+        } else if (serviceData.serviceType === 'info') {
+            serviceData.steps = null;
+            serviceData.phone = serviceData.phone || null;
+            serviceData.email = serviceData.email || null;
+            serviceData.address = serviceData.address || null;
+        }
+
+        // Firestore does not allow `undefined` values.
+        // We can remove them, but it's better practice for updates
+        // to explicitly set unused fields to null.
+        const dataToUpdate: DocumentData = {};
+        for (const key in serviceData) {
+            const value = (serviceData as any)[key];
+            if (value !== undefined) {
+                dataToUpdate[key] = value;
+            }
         }
         
-        return data;
+        return dataToUpdate;
     }
 };
 
