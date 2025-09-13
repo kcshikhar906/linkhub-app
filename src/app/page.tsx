@@ -126,7 +126,7 @@ export default async function Home({ searchParams }: { searchParams: { country?:
             playsInline
             className="absolute z-0 w-full h-full object-cover"
           >
-            <source src="/logo/hero-video.mp4" type="video/mp4" />
+            <source src="/logo/hero-video.webm" type="video/mp4" />
             Your browser does not support the video tag.
           </video>
           <div className="absolute z-10 w-full h-full bg-black/50"></div>

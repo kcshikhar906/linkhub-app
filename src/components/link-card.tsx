@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Copy, Share2, AlertTriangle, ExternalLink, ShieldCheck, Phone, Mail, MapPin, Image as ImageIcon } from 'lucide-react';
@@ -76,6 +77,7 @@ export function LinkCard({ service }: LinkCardProps) {
         setIsOpen={setIsReportDialogOpen} 
         service={service} 
       />
+      <div className="flex flex-col h-full max-h-[85vh] sm:max-h-full">
         <CardHeader>
           <div className="flex items-start gap-4">
              <div className="w-14 h-14 flex-shrink-0 bg-secondary rounded-md flex items-center justify-center">
@@ -116,8 +118,8 @@ export function LinkCard({ service }: LinkCardProps) {
                 </div>
             )}
         </CardHeader>
-        <CardContent className="flex-grow">
-          <ScrollArea className="h-full max-h-[40vh] pr-4">
+        <CardContent className="flex-grow overflow-y-auto">
+          <div className="pr-4">
               {service.serviceType === 'guide' && service.steps && service.steps.length > 0 && (
                 <Accordion type="single" collapsible defaultValue='item-1'>
                   <AccordionItem value="item-1">
@@ -162,9 +164,9 @@ export function LinkCard({ service }: LinkCardProps) {
                   </AccordionItem>
                 </Accordion>
               )}
-           </ScrollArea>
+           </div>
         </CardContent>
-        <CardFooter className="flex flex-wrap gap-2 justify-between border-t pt-6">
+        <CardFooter className="flex flex-wrap gap-2 justify-between border-t pt-6 mt-auto">
           <Button asChild className="bg-primary hover:bg-primary/90">
             <a href={service.link} target="_blank" rel="noopener noreferrer">
               Visit Official Site
@@ -183,6 +185,7 @@ export function LinkCard({ service }: LinkCardProps) {
             </Button>
           </div>
         </CardFooter>
+      </div>
     </>
   );
 }

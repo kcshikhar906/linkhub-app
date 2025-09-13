@@ -18,11 +18,20 @@ export function LocationSelector({ onValueChange, className }: LocationSelectorP
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const currentCountry = searchParams.get('country') || 'AU';
-  const currentState = searchParams.get('state');
-
-  const [selectedCountry, setSelectedCountry] = useState(currentCountry);
-  const [selectedState, setSelectedState] = useState(currentState);
+  // Function to get initial values from localStorage or fallback to searchParams/defaults
+  const getInitialState = (key: 'country' | 'state') => {
+    if (typeof window === 'undefined') {
+      return key === 'country' ? 'AU' : null;
+    }
+    const storedValue = localStorage.getItem(`linkhub-location-${key}`);
+    const paramValue = searchParams.get(key);
+    if (paramValue) return paramValue;
+    if (storedValue) return storedValue;
+    return key === 'country' ? 'AU' : null;
+  };
+  
+  const [selectedCountry, setSelectedCountry] = useState(getInitialState('country'));
+  const [selectedState, setSelectedState] = useState(getInitialState('state'));
   const [states, setStates] = useState<State[]>([]);
 
   useEffect(() => {
@@ -30,29 +39,61 @@ export function LocationSelector({ onValueChange, className }: LocationSelectorP
     setStates(countryData?.states || []);
   }, [selectedCountry]);
   
+  // This effect synchronizes the component's state with URL changes, e.g., when using back/forward buttons
   useEffect(() => {
-    setSelectedCountry(currentCountry);
-    setSelectedState(currentState);
-  }, [currentCountry, currentState]);
+    const countryFromUrl = searchParams.get('country') || (localStorage.getItem('linkhub-location-country') || 'AU');
+    const stateFromUrl = searchParams.get('state') || (localStorage.getItem('linkhub-location-state') || null);
+    setSelectedCountry(countryFromUrl);
+    setSelectedState(stateFromUrl);
+  }, [searchParams]);
+
+  // This effect updates the URL whenever the persisted location changes, on initial load.
+   useEffect(() => {
+    const newParams = new URLSearchParams(searchParams.toString());
+    let needsUpdate = false;
+
+    if (selectedCountry && !newParams.has('country')) {
+      newParams.set('country', selectedCountry);
+      needsUpdate = true;
+    }
+    if (selectedState && !newParams.has('state')) {
+      newParams.set('state', selectedState);
+      needsUpdate = true;
+    }
+
+    if (needsUpdate && !pathname.startsWith('/admin') && !pathname.startsWith('/nepal')) {
+      router.replace(`${pathname}?${newParams.toString()}`, { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCountry, selectedState, pathname]);
 
 
   const handleLocationChange = (type: 'country' | 'state', value: string | null) => {
     const newParams = new URLSearchParams(searchParams.toString());
+    let newCountry = selectedCountry;
+    let newState = selectedState;
 
     if (type === 'country') {
-      newParams.set('country', value || 'AU');
-      newParams.delete('state'); // Reset state when country changes
-      setSelectedCountry(value || 'AU');
-      setSelectedState(null);
+      newCountry = value || 'AU';
+      newState = null; // Reset state when country changes
+      newParams.set('country', newCountry);
+      newParams.delete('state');
+      localStorage.setItem('linkhub-location-country', newCountry);
+      localStorage.removeItem('linkhub-location-state');
+
     } else if (type === 'state') {
-        if (value && value !== 'ALL_STATES') {
-            newParams.set('state', value);
-             setSelectedState(value);
+        newState = value && value !== 'ALL_STATES' ? value : null;
+        if (newState) {
+            newParams.set('state', newState);
+            localStorage.setItem('linkhub-location-state', newState);
         } else {
             newParams.delete('state');
-            setSelectedState(null);
+            localStorage.removeItem('linkhub-location-state');
         }
     }
+    
+    setSelectedCountry(newCountry);
+    setSelectedState(newState);
     
     // Don't append location to admin or nepal-specific pages
     if (pathname.startsWith('/admin') || pathname.startsWith('/nepal')) {
@@ -66,13 +107,16 @@ export function LocationSelector({ onValueChange, className }: LocationSelectorP
   };
 
   return (
-    <div className={cn("flex gap-2 items-center", className)}>
-        <Globe className="h-5 w-5 text-muted-foreground" />
+    <div className={cn("flex flex-col sm:flex-row gap-2 items-start sm:items-center", className)}>
+        <div className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-muted-foreground" />
+            <span className="text-sm font-medium sm:hidden">Location</span>
+        </div>
       <Select
-        value={selectedCountry}
+        value={selectedCountry || 'AU'}
         onValueChange={(value) => handleLocationChange('country', value)}
       >
-        <SelectTrigger className="w-[140px]">
+        <SelectTrigger className="w-full sm:w-[140px]">
           <SelectValue placeholder="Select Country" />
         </SelectTrigger>
         <SelectContent>
@@ -86,10 +130,10 @@ export function LocationSelector({ onValueChange, className }: LocationSelectorP
 
       {states.length > 0 && (
          <Select
-            value={selectedState || undefined}
+            value={selectedState || 'ALL_STATES'}
             onValueChange={(value) => handleLocationChange('state', value)}
         >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="All States" />
             </SelectTrigger>
             <SelectContent>

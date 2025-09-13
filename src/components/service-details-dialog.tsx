@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -28,9 +29,7 @@ export function ServiceDetailsDialog({ isOpen, onOpenChange, service }: ServiceD
           <DialogHeader className="sr-only">
              <DialogTitle>{service.title}</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col">
-            <LinkCard service={service} />
-          </div>
+          <LinkCard service={service} />
       </DialogContent>
     </Dialog>
   );
