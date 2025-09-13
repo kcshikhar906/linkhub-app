@@ -20,6 +20,17 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
   Table,
   TableBody,
   TableCell,
@@ -261,9 +272,7 @@ function ManageLinksPageComponent() {
     setEditingService(null);
   };
 
-  const handleDelete = async (e: React.MouseEvent<HTMLButtonElement, MouseEvent>, id: string, title: string) => {
-    e.stopPropagation();
-    if (!window.confirm(`Are you sure you want to delete "${title}"? This cannot be undone.`)) return;
+  const handleDelete = async (id: string, title: string) => {
     try {
       await deleteDoc(doc(db, 'services', id));
       toast({
@@ -374,7 +383,21 @@ function ManageLinksPageComponent() {
                                     <Button variant="outline" size="icon" onClick={() => openViewDialog(service)}><Eye className="h-4 w-4"/></Button>
                                     <Button variant="outline" size="icon" onClick={() => openEditDialog(service)}><Edit className="h-4 w-4"/></Button>
                                     <Button variant="outline" size="icon" onClick={() => handleToggleStatus(service)}>{service.status === 'published' ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}</Button>
-                                    <Button variant="destructive" size="icon" onClick={(e) => handleDelete(e, service.id, service.title)}><Trash2  className="h-4 w-4"/></Button>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="destructive" size="icon"><Trash2  className="h-4 w-4"/></Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure you want to delete &quot;{service.title}&quot;?</AlertDialogTitle>
+                                                <AlertDialogDescription>This action cannot be undone. This will permanently delete the service.</AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDelete(service.id, service.title)}>Yes, Delete</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
                                 </div>
                                 </TableCell>
                             </TableRow>
@@ -407,7 +430,21 @@ function ManageLinksPageComponent() {
                                 <Button variant="outline" size="icon" onClick={() => openViewDialog(service)}><Eye className="h-4 w-4"/></Button>
                                 <Button variant="outline" size="icon" onClick={() => openEditDialog(service)}><Edit className="h-4 w-4"/></Button>
                                 <Button variant="outline" size="icon" onClick={() => handleToggleStatus(service)}>{service.status === 'published' ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}</Button>
-                                <Button variant="destructive" size="icon" onClick={(e) => handleDelete(e, service.id, service.title)}><Trash2  className="h-4 w-4"/></Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="destructive" size="icon"><Trash2  className="h-4 w-4"/></Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure you want to delete &quot;{service.title}&quot;?</AlertDialogTitle>
+                                            <AlertDialogDescription>This action cannot be undone. This will permanently delete the service.</AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDelete(service.id, service.title)}>Yes, Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                              </CardFooter>
                         </Card>
                     ))}

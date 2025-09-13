@@ -20,6 +20,17 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -83,7 +94,6 @@ export default function ManageCategoriesPage() {
   }, []);
 
   const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete "${name}"? This cannot be undone.`)) return;
     try {
       await deleteDoc(doc(db, 'categories', id));
       toast({
@@ -129,9 +139,27 @@ export default function ManageCategoriesPage() {
                             {Icon && <Icon className="h-6 w-6 text-primary" />}
                             <CardTitle className="text-lg font-semibold leading-tight">{cat.name}</CardTitle>
                         </div>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 -mt-2 -mr-2" onClick={() => handleDelete(cat.id, cat.name)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 -mt-2 -mr-2">
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure you want to delete &quot;{cat.name}&quot;?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete the category. Services in this category will not be deleted but will need to be re-categorized.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDelete(cat.id, cat.name)}>
+                                        Yes, Delete
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </CardHeader>
                     <CardContent className="flex-grow">
                         <p className="text-xs text-muted-foreground mb-3">{cat.slug}</p>

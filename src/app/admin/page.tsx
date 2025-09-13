@@ -28,6 +28,17 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -232,10 +243,8 @@ function AdminPage() {
     setReviewingSubmission(null);
   }
 
-  const handleReject = async (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
-     e.stopPropagation();
+  const handleReject = async () => {
      if (!reviewingSubmission) return;
-     if (!window.confirm(`Are you sure you want to reject and delete the submission "${reviewingSubmission.title}"?`)) return;
      try {
         await deleteDoc(doc(db, 'submissions', reviewingSubmission.id));
         toast({
@@ -243,6 +252,7 @@ function AdminPage() {
           description: `The submission for "${reviewingSubmission.title}" has been deleted.`,
         });
         setIsReviewDialogOpen(false);
+        setReviewingSubmission(null);
      } catch (error) {
          console.error("Error rejecting link: ", error);
          toast({
@@ -423,7 +433,7 @@ function AdminPage() {
       }}>
            <DialogContent className="sm:max-w-2xl">
               <DialogHeader>
-                  <DialogTitle>Review & Approve Submission</DialogTitle>
+                  <DialogTitle>Review Submission</DialogTitle>
                   <DialogDescription>
                      Review the details for &quot;{reviewingSubmission?.title}&quot; before publishing.
                   </DialogDescription>
@@ -499,41 +509,13 @@ interface ReviewFormProps {
     submission: SubmittedLink;
     categories: Category[];
     onSuccess: () => void;
-    onReject: (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
+    onReject: () => void;
 }
 
 function ReviewForm({ submission, categories, onSuccess, onReject }: ReviewFormProps) {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
     
-    // Parse notes to pre-fill description and steps
-    let initialDescription = submission.notes || '';
-    let initialSteps = '';
-    let initialTags: string[] = [];
-
-    if (submission.notes) {
-      const notesLower = submission.notes.toLowerCase();
-      
-      const stepsRegex = /steps:([\s\S]*?)(\n\n|$)/i;
-      const tagsRegex = /suggested tags: (.*)/i;
-      
-      const stepsMatch = submission.notes.match(stepsRegex);
-      const tagsMatch = submission.notes.match(tagsRegex);
-
-      if (stepsMatch && stepsMatch[1]) {
-        initialSteps = stepsMatch[1].replace(/- /g, '').trim();
-        // Remove steps from description
-        initialDescription = initialDescription.replace(stepsMatch[0], '').trim();
-      }
-      
-      if (tagsMatch && tagsMatch[1]) {
-        initialTags = tagsMatch[1].split(',').map(t => t.trim()).filter(Boolean);
-        // Remove tags from description
-        initialDescription = initialDescription.replace(tagsMatch[0], '').trim();
-      }
-    }
-
-
     const form = useForm<ServiceFormValues>({
         resolver: zodResolver(serviceFormSchema),
         defaultValues: {
@@ -542,10 +524,10 @@ function ReviewForm({ submission, categories, onSuccess, onReject }: ReviewFormP
             categorySlug: submission.categorySlug,
             country: submission.country,
             state: submission.state,
-            description: initialDescription,
-            steps: initialSteps,
-            tags: initialTags,
-            serviceType: initialSteps ? 'guide' : 'info',
+            description: submission.notes || '',
+            steps: '', // Steps are now part of 'notes' field and need parsing if logic is added back
+            tags: [], // Tags are now part of 'notes' and need parsing
+            serviceType: 'guide',
             verified: false,
         }
     });
@@ -567,10 +549,9 @@ function ReviewForm({ submission, categories, onSuccess, onReject }: ReviewFormP
         };
 
         try {
-            const [aiResult] = await Promise.all([
-                summarizeLinkCard({ url: data.link, categorySlug: data.categorySlug }),
-            ]);
-
+            // Re-run AI summarization to get the icon, since it's not stored in the submission
+            const aiResult = await summarizeLinkCard({ url: data.link, categorySlug: data.categorySlug });
+            
             const finalData = {
                 ...serviceData,
                 iconDataUri: aiResult.iconDataUri
@@ -585,7 +566,7 @@ function ReviewForm({ submission, categories, onSuccess, onReject }: ReviewFormP
             toast({
                 variant: 'destructive',
                 title: 'Approval Failed',
-                description: 'There was an error approving the link.',
+                description: 'There was an error approving the link. The AI summarizer may have failed.',
             });
         }
         setIsLoading(false);
@@ -596,15 +577,31 @@ function ReviewForm({ submission, categories, onSuccess, onReject }: ReviewFormP
             <form onSubmit={form.handleSubmit(handleApprove)}>
                 <ServiceFormFields categories={categories} />
                 <DialogFooter className="gap-2 sm:gap-0 sm:justify-between pt-4 mt-6 border-t">
-                    <Button
-                        type="button"
-                        variant="destructive"
-                        onClick={onReject}
-                        disabled={isLoading}
-                    >
-                        <Trash2 className="mr-2" />
-                        Reject
-                    </Button>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                disabled={isLoading}
+                            >
+                                <Trash2 className="mr-2" />
+                                Reject
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure you want to reject this submission?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete the submission.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={onReject}>Yes, Reject</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                    
                     <div className="flex gap-2">
                         <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                         <Button type="submit" disabled={isLoading}>
@@ -856,5 +853,3 @@ function MultiSelect({ options, selected, onChange, className, placeholder = "Se
 }
 
 export default AdminPage;
-
-    
