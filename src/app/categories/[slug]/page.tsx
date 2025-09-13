@@ -189,9 +189,7 @@ type CategoryPageProps = {
 };
 
 // This is the main export, a Server Component that wraps the client part.
-export default function CategoryPage({ params }: CategoryPageProps) {
-  const { slug } = params;
-
+export default function CategoryPage({ params: { slug } }: CategoryPageProps) {
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <CategoryPageClient slug={slug} />
