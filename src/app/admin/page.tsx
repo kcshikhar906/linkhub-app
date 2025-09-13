@@ -68,7 +68,7 @@ import {
   } from "@/components/ui/popover"
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
-import { useForm, type SubmitHandler, FormProvider } from 'react-hook-form';
+import { useForm, type SubmitHandler, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { COUNTRIES, type State } from '@/lib/countries';
@@ -505,20 +505,35 @@ interface ReviewFormProps {
 function ReviewForm({ submission, categories, onSuccess, onReject }: ReviewFormProps) {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
-    const [states, setStates] = useState<State[]>([]);
-
+    
+    // Parse notes to pre-fill description and steps
     let initialDescription = submission.notes || '';
     let initialSteps = '';
+    let initialTags: string[] = [];
 
-    if (initialDescription.includes('Steps:\n- ')) {
-        const parts = initialDescription.split('Steps:\n- ');
-        initialDescription = parts[0].trim();
-        if (parts[1]) {
-            const stepsAndTags = parts[1].split('\n\nSuggested Tags:');
-            initialSteps = stepsAndTags[0].replace(/- /g, '').trim();
-        }
+    if (submission.notes) {
+      const notesLower = submission.notes.toLowerCase();
+      
+      const stepsRegex = /steps:([\s\S]*?)(\n\n|$)/i;
+      const tagsRegex = /suggested tags: (.*)/i;
+      
+      const stepsMatch = submission.notes.match(stepsRegex);
+      const tagsMatch = submission.notes.match(tagsRegex);
+
+      if (stepsMatch && stepsMatch[1]) {
+        initialSteps = stepsMatch[1].replace(/- /g, '').trim();
+        // Remove steps from description
+        initialDescription = initialDescription.replace(stepsMatch[0], '').trim();
+      }
+      
+      if (tagsMatch && tagsMatch[1]) {
+        initialTags = tagsMatch[1].split(',').map(t => t.trim()).filter(Boolean);
+        // Remove tags from description
+        initialDescription = initialDescription.replace(tagsMatch[0], '').trim();
+      }
     }
-    
+
+
     const form = useForm<ServiceFormValues>({
         resolver: zodResolver(serviceFormSchema),
         defaultValues: {
@@ -529,21 +544,11 @@ function ReviewForm({ submission, categories, onSuccess, onReject }: ReviewFormP
             state: submission.state,
             description: initialDescription,
             steps: initialSteps,
-            tags: [],
+            tags: initialTags,
             serviceType: initialSteps ? 'guide' : 'info',
             verified: false,
         }
     });
-
-    const selectedCountry = form.watch('country');
-    const serviceType = form.watch('serviceType');
-    const selectedCategorySlug = form.watch('categorySlug');
-    const availableTags = useMemo(() => CATEGORY_TAGS[selectedCategorySlug] || [], [selectedCategorySlug]);
-
-    useEffect(() => {
-        const countryData = COUNTRIES.find((c) => c.code === selectedCountry);
-        setStates(countryData ? countryData.states : []);
-    }, [selectedCountry]);
     
     const handleApprove: SubmitHandler<ServiceFormValues> = async (data) => {
         setIsLoading(true);
@@ -562,8 +567,17 @@ function ReviewForm({ submission, categories, onSuccess, onReject }: ReviewFormP
         };
 
         try {
+            const [aiResult] = await Promise.all([
+                summarizeLinkCard({ url: data.link, categorySlug: data.categorySlug }),
+            ]);
+
+            const finalData = {
+                ...serviceData,
+                iconDataUri: aiResult.iconDataUri
+            };
+
             const servicesCol = collection(db, 'services');
-            await addDoc(servicesCol.withConverter(serviceConverter), serviceConverter.toFirestore(serviceData));
+            await addDoc(servicesCol.withConverter(serviceConverter), serviceConverter.toFirestore(finalData));
             await deleteDoc(doc(db, 'submissions', submission.id));
             onSuccess();
         } catch (error) {
@@ -580,7 +594,7 @@ function ReviewForm({ submission, categories, onSuccess, onReject }: ReviewFormP
     return (
         <FormProvider {...form}>
             <form onSubmit={form.handleSubmit(handleApprove)}>
-                <ServiceFormFields categories={categories} states={states} availableTags={availableTags} serviceType={serviceType} />
+                <ServiceFormFields categories={categories} />
                 <DialogFooter className="gap-2 sm:gap-0 sm:justify-between pt-4 mt-6 border-t">
                     <Button
                         type="button"
@@ -608,15 +622,23 @@ function ReviewForm({ submission, categories, onSuccess, onReject }: ReviewFormP
 // UI Fields for the form
 interface ServiceFormFieldsProps {
     categories: Category[];
-    states: State[];
-    availableTags: string[];
-    serviceType?: 'guide' | 'info';
 }
 
 const ServiceFormFields = forwardRef<HTMLDivElement, ServiceFormFieldsProps>(
-  ({ categories, states, availableTags, serviceType }, ref) => {
+  ({ categories }, ref) => {
     const form = useFormContext<ServiceFormValues>();
+    const [states, setStates] = useState<State[]>([]);
 
+    const selectedCountry = form.watch('country');
+    const serviceType = form.watch('serviceType');
+    const selectedCategorySlug = form.watch('categorySlug');
+    const availableTags = useMemo(() => CATEGORY_TAGS[selectedCategorySlug] || [], [selectedCategorySlug]);
+
+    useEffect(() => {
+        const countryData = COUNTRIES.find((c) => c.code === selectedCountry);
+        setStates(countryData ? countryData.states : []);
+    }, [selectedCountry]);
+    
     return (
       <div ref={ref} className="space-y-6 py-6 max-h-[75vh] overflow-y-auto pr-4 -mr-4">
           {/* Core Details */}
@@ -834,3 +856,5 @@ function MultiSelect({ options, selected, onChange, className, placeholder = "Se
 }
 
 export default AdminPage;
+
+    

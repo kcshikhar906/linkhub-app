@@ -84,7 +84,7 @@ import {
     PopoverContent,
     PopoverTrigger,
   } from "@/components/ui/popover"
-import { useForm, type SubmitHandler, FormProvider } from 'react-hook-form';
+import { useForm, type SubmitHandler, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
@@ -636,7 +636,6 @@ interface ServiceFormProps {
 function ServiceForm({ categories, editingService = null, onSuccess }: ServiceFormProps) {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
-    const [states, setStates] = useState<State[]>([]);
     
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -652,23 +651,6 @@ function ServiceForm({ categories, editingService = null, onSuccess }: ServiceFo
               }
     });
 
-    const selectedCountry = form.watch('country');
-    const serviceType = form.watch('serviceType');
-    const selectedCategorySlug = form.watch('categorySlug');
-    const availableTags = useMemo(() => CATEGORY_TAGS[selectedCategorySlug] || [], [selectedCategorySlug]);
-
-    useEffect(() => {
-        const countryData = COUNTRIES.find((c) => c.code === selectedCountry);
-        setStates(countryData ? countryData.states : []);
-        // Don't reset state field if we are not actively changing the country
-    }, [selectedCountry]);
-
-    useEffect(() => {
-        if (!editingService) {
-            form.setValue('tags', []);
-        }
-    }, [selectedCategorySlug, form, editingService]);
-    
     const handleFormSubmit: SubmitHandler<FormValues> = async (data) => {
         setIsLoading(true);
         const isGuide = data.serviceType === 'guide';
@@ -680,7 +662,7 @@ function ServiceForm({ categories, editingService = null, onSuccess }: ServiceFo
           phone: !isGuide ? data.phone : null,
           email: !isGuide ? data.email : null,
           address: !isGuide ? data.address : null,
-          status: 'published' as const,
+          status: editingService?.status || 'published' as const,
           verified: data.verified || false,
         };
         
@@ -697,6 +679,7 @@ function ServiceForm({ categories, editingService = null, onSuccess }: ServiceFo
                 toast({ title: 'Service Added', description: 'The new service has been published.' });
             }
             onSuccess();
+            form.reset();
         } catch (error) {
           console.error('Error saving service: ', error);
           toast({ variant: 'destructive', title: 'Error', description: 'Failed to save service.' });
@@ -707,7 +690,7 @@ function ServiceForm({ categories, editingService = null, onSuccess }: ServiceFo
     return (
         <FormProvider {...form}>
             <form onSubmit={form.handleSubmit(handleFormSubmit)}>
-                <ServiceFormFields categories={categories} states={states} availableTags={availableTags} serviceType={serviceType} />
+                <ServiceFormFields categories={categories} />
                 <DialogFooter className="pt-6 border-t">
                     <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                     <Button type="submit" disabled={isLoading}>
@@ -723,14 +706,33 @@ function ServiceForm({ categories, editingService = null, onSuccess }: ServiceFo
 // UI Fields for the form
 interface ServiceFormFieldsProps {
     categories: Category[];
-    states: State[];
-    availableTags: string[];
-    serviceType?: 'guide' | 'info';
 }
 
 const ServiceFormFields = forwardRef<HTMLDivElement, ServiceFormFieldsProps>(
-  ({ categories, states, availableTags, serviceType }, ref) => {
+  ({ categories }, ref) => {
     const form = useFormContext<FormValues>();
+    const [states, setStates] = useState<State[]>([]);
+
+    const selectedCountry = form.watch('country');
+    const serviceType = form.watch('serviceType');
+    const selectedCategorySlug = form.watch('categorySlug');
+    const availableTags = useMemo(() => CATEGORY_TAGS[selectedCategorySlug] || [], [selectedCategorySlug]);
+
+    useEffect(() => {
+        const countryData = COUNTRIES.find((c) => c.code === selectedCountry);
+        setStates(countryData ? countryData.states : []);
+        // Don't reset state field if we are not actively changing the country
+    }, [selectedCountry]);
+    
+    // Reset tags when category changes unless we are editing
+    useEffect(() => {
+        const subscription = form.watch((value, { name }) => {
+            if (name === 'categorySlug') {
+                form.setValue('tags', []);
+            }
+        })
+        return () => subscription.unsubscribe()
+    }, [form]);
 
     return (
       <div ref={ref} className="space-y-6 py-6 max-h-[75vh] overflow-y-auto pr-4 -mr-4">
@@ -956,3 +958,5 @@ export default function ManageLinksPage() {
         </Suspense>
     )
 }
+
+    
