@@ -18,26 +18,53 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, Check, Trash2, Loader2, PlusCircle, ArrowUpRight, Link as LinkIcon, Layers, FileClock, AlertCircle } from 'lucide-react';
+import { ExternalLink, Check, Trash2, Loader2, PlusCircle, ArrowUpRight, Link as LinkIcon, Layers, FileClock, AlertCircle, Edit, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, deleteDoc, setDoc, updateDoc, query, orderBy, getCountFromServer, where } from 'firebase/firestore';
+import { collection, onSnapshot, doc, deleteDoc, setDoc, updateDoc, query, orderBy, getCountFromServer, where, addDoc } from 'firebase/firestore';
 import {
   submissionConverter,
   type SubmittedLink,
   serviceConverter,
   reportConverter,
   type ReportedLink,
+  categoryConverter,
+  type Category,
 } from '@/lib/data';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
+import { useForm, type SubmitHandler } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { COUNTRIES, type State } from '@/lib/countries';
+
 
 type GroupedReports = {
   [key: string]: {
@@ -45,6 +72,19 @@ type GroupedReports = {
     reports: ReportedLink[];
   };
 }
+
+const serviceFormSchema = z.object({
+  title: z.string().min(5),
+  link: z.string().url(),
+  categorySlug: z.string({ required_error: 'Please select a category.' }),
+  description: z.string().min(10),
+  steps: z.string().min(10),
+  country: z.string({ required_error: 'Please select a country.' }),
+  state: z.string().optional(),
+  verified: z.boolean().optional(),
+});
+
+type ServiceFormValues = z.infer<typeof serviceFormSchema>;
 
 function AdminPage() {
   const { user } = useAuth();
@@ -55,6 +95,30 @@ function AdminPage() {
   const [loadingReports, setLoadingReports] = useState(true);
   const [stats, setStats] = useState({ services: 0, categories: 0, submissions: 0, reports: 0});
   const [loadingStats, setLoadingStats] = useState(true);
+  
+  // State for the review dialog
+  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [reviewingSubmission, setReviewingSubmission] = useState<SubmittedLink | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [states, setStates] = useState<State[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const form = useForm<ServiceFormValues>({
+    resolver: zodResolver(serviceFormSchema),
+    defaultValues: {
+      verified: false,
+    }
+  });
+
+  const selectedCountry = form.watch('country');
+
+  useEffect(() => {
+    const countryData = COUNTRIES.find((c) => c.code === selectedCountry);
+    setStates(countryData ? countryData.states : []);
+    if (!reviewingSubmission) {
+        form.setValue('state', undefined);
+    }
+  }, [selectedCountry, form, reviewingSubmission]);
 
 
   useEffect(() => {
@@ -62,12 +126,21 @@ function AdminPage() {
     setLoadingSubmissions(true);
     setLoadingReports(true);
     setLoadingStats(true);
+    
+    const fetchCategories = onSnapshot(
+      query(collection(db, 'categories'), orderBy('name')),
+      (snapshot) => {
+        setCategories(
+          snapshot.docs.map((doc) => categoryConverter.fromFirestore(doc))
+        );
+      }
+    );
 
     const fetchStats = async () => {
         try {
             const servicesCol = collection(db, 'services');
             const categoriesCol = collection(db, 'categories');
-            const submissionsCol = collection(db, 'submissions');
+            const submissionsCol = query(collection(db, 'submissions'), where('status', '==', 'pending'));
             const reportsCol = query(collection(db, 'reports'), where('status', '==', 'pending'));
 
             const servicesSnapshot = await getCountFromServer(servicesCol);
@@ -90,7 +163,7 @@ function AdminPage() {
 
     fetchStats();
 
-    const submissionsQuery = query(collection(db, 'submissions'), orderBy('title'));
+    const submissionsQuery = query(collection(db, 'submissions'), where('status', '==', 'pending'), orderBy('title'));
     const submissionsUnsubscribe = onSnapshot(submissionsQuery.withConverter(
       submissionConverter
     ), (snapshot) => {
@@ -102,11 +175,13 @@ function AdminPage() {
     const reportsUnsubscribe = onSnapshot(reportsQuery.withConverter(reportConverter), (snapshot) => {
         const reports = snapshot.docs.map(doc => doc.data());
         const grouped = reports.reduce((acc, report) => {
-          const { serviceId, serviceTitle } = report;
-          if (!acc[serviceId]) {
-            acc[serviceId] = { serviceTitle, reports: [] };
+          if (report.status === 'pending') {
+            const { serviceId, serviceTitle } = report;
+            if (!acc[serviceId]) {
+              acc[serviceId] = { serviceTitle, reports: [] };
+            }
+            acc[serviceId].reports.push(report);
           }
-          acc[serviceId].reports.push(report);
           return acc;
         }, {} as GroupedReports)
         setGroupedReports(grouped);
@@ -115,32 +190,49 @@ function AdminPage() {
 
 
     return () => {
+        fetchCategories();
         submissionsUnsubscribe();
         reportsUnsubscribe();
     }
   }, [user, toast]);
-
-  const handleApprove = async (submission: SubmittedLink) => {
-    const serviceData = {
+  
+  const openReviewDialog = (submission: SubmittedLink) => {
+    setReviewingSubmission(submission);
+    form.reset({
         title: submission.title,
-        description: 'Please edit this description.',
-        steps: ['Step 1', 'Step 2'],
         link: submission.url,
         categorySlug: submission.categorySlug,
         country: submission.country,
         state: submission.state,
-        status: 'published' as const
+        // Default values for fields not in submission
+        description: '', 
+        steps: '',
+        verified: false,
+    });
+    setIsReviewDialogOpen(true);
+  }
+
+  const handleApprove: SubmitHandler<ServiceFormValues> = async (data) => {
+    if (!reviewingSubmission) return;
+    setIsLoading(true);
+
+    const serviceData = {
+        ...data,
+        steps: data.steps.split('\n').filter(Boolean),
+        status: 'published' as const,
     };
 
     try {
-        const newServiceRef = doc(collection(db, 'services')).withConverter(serviceConverter);
-        await setDoc(newServiceRef, serviceData);
-        await deleteDoc(doc(db, 'submissions', submission.id));
+        const servicesCol = collection(db, 'services').withConverter(serviceConverter);
+        await addDoc(servicesCol, serviceData);
+        await deleteDoc(doc(db, 'submissions', reviewingSubmission.id));
 
         toast({
-            title: 'Link Approved',
-            description: `"${submission.title}" has been published. Please review it in Manage Links.`,
+            title: 'Link Approved & Published',
+            description: `"${data.title}" has been successfully added to the directory.`,
         });
+        setIsReviewDialogOpen(false);
+        setReviewingSubmission(null);
 
     } catch (error) {
         console.error("Error approving link: ", error);
@@ -150,14 +242,16 @@ function AdminPage() {
             description: 'There was an error approving the link.',
         });
     }
+    setIsLoading(false);
   };
 
   const handleReject = async (id: string, title: string) => {
+     if (!window.confirm(`Are you sure you want to reject and delete the submission "${title}"?`)) return;
      try {
         await deleteDoc(doc(db, 'submissions', id));
         toast({
           title: 'Link Rejected',
-          description: `"${title}" has been rejected.`,
+          description: `The submission for "${title}" has been deleted.`,
         });
      } catch (error) {
          console.error("Error rejecting link: ", error);
@@ -186,6 +280,69 @@ function AdminPage() {
         });
     }
   }
+  
+  const ServiceFormFields = () => (
+    <div className="space-y-4 py-6 max-h-[70vh] overflow-y-auto pr-4">
+        <div className="grid gap-3">
+            <Label htmlFor="title">Service Title</Label>
+            <Input id="title" type="text" placeholder="e.g., How to apply for a TFN" {...form.register('title')} />
+            {form.formState.errors.title && <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>}
+        </div>
+        <div className="grid gap-3">
+            <Label htmlFor="link">Official URL</Label>
+            <Input id="link" type="url" placeholder="https://service.gov.au/..." {...form.register('link')} />
+            {form.formState.errors.link && <p className="text-sm text-destructive">{form.formState.errors.link.message}</p>}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid gap-3">
+                <Label htmlFor="country">Country</Label>
+                <Select value={form.watch('country')} onValueChange={(value) => form.setValue('country', value)}>
+                <SelectTrigger id="country"><SelectValue placeholder="Select a country" /></SelectTrigger>
+                <SelectContent>
+                    {COUNTRIES.map((c) => (<SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>))}
+                </SelectContent>
+                </Select>
+                {form.formState.errors.country && <p className="text-sm text-destructive">{form.formState.errors.country.message}</p>}
+            </div>
+            <div className="grid gap-3">
+                <Label htmlFor="state">State / Province</Label>
+                <Select value={form.watch('state')} onValueChange={(value) => form.setValue('state', value)} disabled={states.length === 0}>
+                <SelectTrigger id="state"><SelectValue placeholder="Select a state (if applicable)" /></SelectTrigger>
+                <SelectContent>
+                    {states.map((s) => (<SelectItem key={s.code} value={s.code}>{s.name}</SelectItem>))}
+                </SelectContent>
+                </Select>
+            </div>
+        </div>
+        <div className="grid gap-3">
+            <Label htmlFor="categorySlug">Category</Label>
+            <Select value={form.watch('categorySlug')} onValueChange={(value) => form.setValue('categorySlug', value)}>
+            <SelectTrigger id="categorySlug" aria-label="Select category"><SelectValue placeholder="Select category" /></SelectTrigger>
+            <SelectContent>
+                {categories.map((cat) => (<SelectItem key={cat.slug} value={cat.slug}>{cat.name}</SelectItem>))}
+            </SelectContent>
+            </Select>
+            {form.formState.errors.categorySlug && <p className="text-sm text-destructive">{form.formState.errors.categorySlug.message}</p>}
+        </div>
+        <div className="grid gap-3">
+            <Label htmlFor="description">Short Description</Label>
+            <Textarea id="description" placeholder="A brief explanation of the service." {...form.register('description')} />
+            {form.formState.errors.description && <p className="text-sm text-destructive">{form.formState.errors.description.message}</p>}
+        </div>
+        <div className="grid gap-3">
+            <Label htmlFor="steps">Steps (one per line)</Label>
+            <Textarea id="steps" rows={5} placeholder="Step 1...\nStep 2...\nStep 3..." {...form.register('steps')} />
+            {form.formState.errors.steps && <p className="text-sm text-destructive">{form.formState.errors.steps.message}</p>}
+        </div>
+        <div className="flex items-center space-x-2">
+            <Checkbox id="verified" checked={form.watch('verified')} onCheckedChange={(checked) => form.setValue('verified', !!checked)} />
+            <Label htmlFor="verified" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Mark as Verified
+            </Label>
+        </div>
+    </div>
+  );
+
 
   return (
     <div className="grid gap-8">
@@ -259,66 +416,58 @@ function AdminPage() {
         </CardHeader>
         <CardContent>
           {loadingSubmissions ? <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground"/></div> :
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>URL</TableHead>
-                <TableHead>Submitted By</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {submissions.map((link) => (
-                <TableRow key={link.id}>
-                  <TableCell className="font-medium">{link.title}</TableCell>
-                   <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-semibold">{link.country}</span>
-                        <span className="text-xs text-muted-foreground">{link.state}</span>
-                      </div>
-                    </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{link.categorySlug}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <a
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline flex items-center gap-1"
-                    >
-                      {link.url.substring(0, 30)}...
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </TableCell>
-                  <TableCell>{link.email}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex gap-2 justify-end">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleApprove(link)}
-                      >
-                        <Check className="h-4 w-4 mr-2" />
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleReject(link.id, link.title)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Reject
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+            <Accordion type="multiple" className="w-full">
+               {submissions.map((link) => (
+                <AccordionItem value={link.id} key={link.id}>
+                    <AccordionTrigger>
+                        <div className="flex items-center gap-4 flex-1 text-left">
+                            <span className="font-medium">{link.title}</span>
+                            <Badge variant="secondary">{link.categorySlug}</Badge>
+                        </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                        <div className="space-y-4 px-2">
+                            <div className="text-sm">
+                                <span className="font-semibold text-muted-foreground">URL: </span>
+                                <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{link.url} <ExternalLink className="inline h-4 w-4" /></a>
+                            </div>
+                             <div className="text-sm">
+                                <span className="font-semibold text-muted-foreground">Location: </span>
+                                <span>{link.country}{link.state && `, ${link.state}`}</span>
+                            </div>
+                            <div className="text-sm">
+                                <span className="font-semibold text-muted-foreground">Submitted by: </span>
+                                <span>{link.email}</span>
+                            </div>
+                             {link.notes && (
+                                <div className="text-sm pt-2 border-t">
+                                    <p className="font-semibold text-muted-foreground mb-1">Additional Notes:</p>
+                                    <p className="p-3 bg-muted rounded-md whitespace-pre-wrap">{link.notes}</p>
+                                </div>
+                             )}
+                             <div className="flex gap-2 justify-end pt-4">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => openReviewDialog(link)}
+                                >
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Review & Approve
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => handleReject(link.id, link.title)}
+                                >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Reject
+                                </Button>
+                            </div>
+                        </div>
+                    </AccordionContent>
+                </AccordionItem>
               ))}
-            </TableBody>
-          </Table>
+            </Accordion>
           }
         </CardContent>
       </Card>
@@ -341,7 +490,7 @@ function AdminPage() {
                   <AccordionTrigger>
                     <div className='flex items-center gap-4'>
                       <span className='font-medium'>{group.serviceTitle}</span>
-                      <Badge variant="destructive">{group.reports.filter(r => r.status === 'pending').length} pending</Badge>
+                      <Badge variant="destructive">{group.reports.length} pending</Badge>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
@@ -388,6 +537,34 @@ function AdminPage() {
           }
         </CardContent>
       </Card>
+      
+      {/* Review and Approve Dialog */}
+      <Dialog open={isReviewDialogOpen} onOpenChange={(isOpen) => {
+          if (!isOpen) {
+              setReviewingSubmission(null);
+          }
+          setIsReviewDialogOpen(isOpen);
+      }}>
+           <DialogContent className="sm:max-w-2xl">
+              <form onSubmit={form.handleSubmit(handleApprove)}>
+                  <DialogHeader>
+                      <DialogTitle>Review & Approve Submission</DialogTitle>
+                      <DialogDescription>
+                          Edit and finalize the details for &quot;{reviewingSubmission?.title}&quot; before publishing.
+                      </DialogDescription>
+                  </DialogHeader>
+                  <ServiceFormFields />
+                  <DialogFooter>
+                    <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                    <Button type="submit" disabled={isLoading}>
+                        {isLoading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />}
+                        {isLoading ? 'Publishing...' : 'Approve & Publish'}
+                    </Button>
+                  </DialogFooter>
+              </form>
+          </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

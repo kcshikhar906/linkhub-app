@@ -50,6 +50,7 @@ export type SubmittedLink = {
     notes?: string;
     country: string;
     state?: string;
+    status: 'pending' | 'approved' | 'rejected';
 }
 
 export type ReportedLink = {
@@ -154,12 +155,17 @@ export const submissionConverter = {
             notes: data.notes,
             country: data.country,
             state: data.state,
+            status: data.status || 'pending',
         };
     },
     toFirestore: (submission: Partial<Omit<SubmittedLink, 'id'>>): DocumentData => {
-        return {
+        const data: DocumentData = {
            ...submission
         };
+        if (data.status === undefined) {
+            data.status = 'pending';
+        }
+        return data;
     }
 }
 

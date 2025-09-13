@@ -89,8 +89,12 @@ export function AddLinkForm() {
     setIsLoading(true);
     
     try {
+        const submissionData = {
+            ...data,
+            status: 'pending' as const
+        }
         const submissionsCol = collection(db, 'submissions').withConverter(submissionConverter);
-        await addDoc(submissionsCol, data);
+        await addDoc(submissionsCol, submissionData);
         
         toast({
             title: 'Link Submitted!',
