@@ -13,15 +13,15 @@ interface StatItemProps {
 
 function StatItem({ icon: Icon, to, label }: StatItemProps) {
   const count = useMotionValue(0);
-  // Using a stiffer spring for a faster, "odometer-like" effect
-  const rounded = useSpring(count, { mass: 0.5, stiffness: 100, damping: 20 });
+  // Using a stiffer, faster spring for a quick "odometer" effect
+  const rounded = useSpring(count, { mass: 0.1, stiffness: 150, damping: 20 });
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: '-50px' });
 
   useEffect(() => {
     if (inView) {
       const controls = animate(count, to, {
-        duration: 1.5, // Faster animation duration
+        duration: 1.2, // Faster animation duration
         ease: 'easeOut',
         onComplete: () => {
           // Start the "live" increment effect after the initial animation
@@ -46,8 +46,8 @@ function StatItem({ icon: Icon, to, label }: StatItemProps) {
   }, [rounded]);
 
   return (
-    <div className="flex flex-col items-center text-center p-4">
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">
+    <div className="flex flex-col items-center text-center p-2">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary mb-3">
         <Icon className="h-8 w-8" />
       </div>
       <div className="text-4xl font-bold tracking-tighter" ref={ref}>0+</div>
@@ -66,9 +66,9 @@ export function StatsCounter() {
   ];
 
   return (
-    <section className="py-12 md:py-20 bg-muted/50">
+    <section className="py-12 md:py-16 bg-muted/50">
       <div className="container mx-auto">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-6">
           {stats.map((stat) => (
             <StatItem key={stat.label} {...stat} />
           ))}
