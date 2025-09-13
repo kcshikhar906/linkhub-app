@@ -16,6 +16,8 @@ import {
   Building,
   HeartHandshake,
   ShieldCheck,
+  Mail,
+  MapPin,
 } from 'lucide-react';
 import { Timestamp, type DocumentData, type QueryDocumentSnapshot, type ServerTimestamp } from 'firebase/firestore';
 
@@ -24,13 +26,17 @@ export type Service = {
   id: string;
   title: string;
   description: string;
-  steps: string[];
   link: string;
   categorySlug: string;
   status: 'published' | 'disabled';
   country: string; // e.g., 'AU', 'NP'
   state?: string; // e.g., 'NSW', 'VIC'
   verified?: boolean;
+  serviceType: 'guide' | 'info';
+  steps?: string[];
+  phone?: string;
+  email?: string;
+  address?: string;
 };
 
 export type Category = {
@@ -84,6 +90,8 @@ export const ICONS: { [key: string]: LucideIcon } = {
     Building,
     HeartHandshake,
     ShieldCheck,
+    Mail,
+    MapPin,
 };
 
 
@@ -99,28 +107,44 @@ export const serviceConverter = {
             id: snapshot.id,
             title: data.title,
             description: data.description,
-            steps: data.steps,
             link: data.link,
             categorySlug: data.categorySlug,
-            status: data.status || 'published', // Default to published
+            status: data.status || 'published',
             country: data.country,
             state: data.state,
             verified: data.verified || false,
+            serviceType: data.serviceType || 'guide',
+            steps: data.steps,
+            phone: data.phone,
+            email: data.email,
+            address: data.address,
         };
     },
     toFirestore: (service: Partial<Service>): DocumentData => {
-        // Return a new object with only the fields that are not undefined.
-        // This is crucial for updates, so we don't overwrite fields we don't intend to.
         const data: DocumentData = {};
         if (service.title !== undefined) data.title = service.title;
         if (service.description !== undefined) data.description = service.description;
-        if (service.steps !== undefined) data.steps = service.steps;
         if (service.link !== undefined) data.link = service.link;
         if (service.categorySlug !== undefined) data.categorySlug = service.categorySlug;
         if (service.status !== undefined) data.status = service.status;
         if (service.country !== undefined) data.country = service.country;
         if (service.state !== undefined) data.state = service.state;
         if (service.verified !== undefined) data.verified = service.verified;
+        if (service.serviceType !== undefined) data.serviceType = service.serviceType;
+        
+        // Handle type-specific fields
+        if (service.serviceType === 'guide') {
+            data.steps = service.steps || [];
+            data.phone = null;
+            data.email = null;
+            data.address = null;
+        } else if (service.serviceType === 'info') {
+            data.steps = null;
+            data.phone = service.phone || null;
+            data.email = service.email || null;
+            data.address = service.address || null;
+        }
+        
         return data;
     }
 };

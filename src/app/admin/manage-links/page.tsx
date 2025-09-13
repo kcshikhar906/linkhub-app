@@ -33,6 +33,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   type Category,
   type Service,
@@ -54,6 +55,9 @@ import {
   List,
   Save,
   ShieldCheck,
+  Mail,
+  Phone,
+  MapPin,
 } from 'lucide-react';
 import {
   Select,
@@ -86,10 +90,22 @@ const formSchema = z.object({
   link: z.string().url(),
   categorySlug: z.string({ required_error: 'Please select a category.' }),
   description: z.string().min(10),
-  steps: z.string().min(10),
   country: z.string({ required_error: 'Please select a country.' }),
   state: z.string().optional(),
   verified: z.boolean().optional(),
+  serviceType: z.enum(['guide', 'info'], { required_error: 'You must select a service type.' }),
+  steps: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email().optional().or(z.literal('')),
+  address: z.string().optional(),
+}).refine(data => {
+    if (data.serviceType === 'guide') {
+        return !!data.steps && data.steps.length > 10;
+    }
+    return true;
+}, {
+    message: 'Steps are required for a guide.',
+    path: ['steps'],
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -123,10 +139,12 @@ function ManageLinksPageComponent() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       verified: false,
+      serviceType: 'guide',
     }
   });
 
   const selectedCountry = form.watch('country');
+  const serviceType = form.watch('serviceType');
 
   useEffect(() => {
     const countryData = COUNTRIES.find((c) => c.code === selectedCountry);
@@ -161,7 +179,7 @@ function ManageLinksPageComponent() {
         setEditingService(service);
         form.reset({
             ...service,
-            steps: service.steps.join('\n'),
+            steps: service.steps?.join('\n') || '',
         });
         setIsEditDialogOpen(true);
     }
@@ -228,7 +246,10 @@ function ManageLinksPageComponent() {
     setIsLoading(true);
     const serviceData = {
       ...data,
-      steps: data.steps.split('\n').filter((step) => step.trim() !== ''),
+      steps: data.serviceType === 'guide' ? data.steps?.split('\n').filter((step) => step.trim() !== '') : undefined,
+      phone: data.serviceType === 'info' ? data.phone : undefined,
+      email: data.serviceType === 'info' ? data.email : undefined,
+      address: data.serviceType === 'info' ? data.address : undefined,
       status: 'published' as const,
       verified: data.verified || false,
     };
@@ -253,7 +274,7 @@ function ManageLinksPageComponent() {
             });
             setIsAddDialogOpen(false);
         }
-        form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined });
+        form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: 'guide' });
         
     } catch (error) {
       console.error('Error saving service: ', error);
@@ -348,6 +369,7 @@ function ManageLinksPageComponent() {
                             <TableRow>
                             <TableHead>Title</TableHead>
                             <TableHead>Location</TableHead>
+                            <TableHead>Type</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Verified</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
@@ -362,6 +384,9 @@ function ManageLinksPageComponent() {
                                     <span className="font-semibold">{service.country}</span>
                                     <span className="text-xs text-muted-foreground">{service.state}</span>
                                 </div>
+                                </TableCell>
+                                <TableCell>
+                                <Badge variant="outline">{service.serviceType}</Badge>
                                 </TableCell>
                                 <TableCell>
                                 <Badge variant={service.status === 'published' ? 'default' : 'secondary'}>{service.status}</Badge>
@@ -399,6 +424,7 @@ function ManageLinksPageComponent() {
                                             Verified
                                         </Badge>
                                     )}
+                                    <Badge variant="outline">{service.serviceType}</Badge>
                                  </div>
                             </CardHeader>
                              <CardFooter className="flex gap-2 justify-end mt-auto pt-4">
@@ -522,11 +548,62 @@ function ManageLinksPageComponent() {
             <Textarea id="description" placeholder="A brief explanation of the service." {...form.register('description')} />
             {form.formState.errors.description && <p className="text-sm text-destructive">{form.formState.errors.description.message}</p>}
         </div>
+
         <div className="grid gap-3">
-            <Label htmlFor="steps">Steps (one per line)</Label>
-            <Textarea id="steps" rows={5} placeholder="Step 1...\nStep 2...\nStep 3..." {...form.register('steps')} />
-            {form.formState.errors.steps && <p className="text-sm text-destructive">{form.formState.errors.steps.message}</p>}
+            <Label>Service Type</Label>
+            <RadioGroup
+                defaultValue={serviceType}
+                onValueChange={(value: 'guide' | 'info') => form.setValue('serviceType', value)}
+                className="flex gap-4"
+            >
+                <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="guide" id="r1" />
+                    <Label htmlFor="r1">Guide (with steps)</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="info" id="r2" />
+                    <Label htmlFor="r2">Info (with contact details)</Label>
+                </div>
+            </RadioGroup>
+            {form.formState.errors.serviceType && <p className="text-sm text-destructive">{form.formState.errors.serviceType.message}</p>}
         </div>
+        
+        {serviceType === 'guide' && (
+            <div className="grid gap-3">
+                <Label htmlFor="steps">Steps (one per line)</Label>
+                <Textarea id="steps" rows={5} placeholder="Step 1...\nStep 2...\nStep 3..." {...form.register('steps')} />
+                {form.formState.errors.steps && <p className="text-sm text-destructive">{form.formState.errors.steps.message}</p>}
+            </div>
+        )}
+        
+        {serviceType === 'info' && (
+            <div className="space-y-4 rounded-md border p-4">
+                <h4 className="font-medium text-sm">Contact Information</h4>
+                 <div className="grid gap-3">
+                    <Label htmlFor="phone">Phone Number</Label>
+                     <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input id="phone" type="tel" placeholder="e.g., (02) 1234 5678" {...form.register('phone')} className="pl-10" />
+                     </div>
+                </div>
+                 <div className="grid gap-3">
+                    <Label htmlFor="email">Email Address</Label>
+                     <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input id="email" type="email" placeholder="e.g., contact@business.com.au" {...form.register('email')} className="pl-10"/>
+                     </div>
+                    {form.formState.errors.email && <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>}
+                </div>
+                 <div className="grid gap-3">
+                    <Label htmlFor="address">Physical Address</Label>
+                     <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input id="address" type="text" placeholder="e.g., 123 Example St, Sydney NSW 2000" {...form.register('address')} className="pl-10" />
+                    </div>
+                </div>
+            </div>
+        )}
+
         <div className="flex items-center space-x-2">
             <Checkbox id="verified" checked={form.watch('verified')} onCheckedChange={(checked) => form.setValue('verified', !!checked)} />
             <Label htmlFor="verified" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -550,7 +627,7 @@ function ManageLinksPageComponent() {
         {/* ADD DIALOG */}
         <Dialog open={isAddDialogOpen} onOpenChange={(isOpen) => {
             if (!isOpen) {
-                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined });
+                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: 'guide' });
                 setEditingService(null);
             }
             setIsAddDialogOpen(isOpen);
@@ -584,7 +661,7 @@ function ManageLinksPageComponent() {
         {/* EDIT DIALOG */}
         <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => {
             if (!isOpen) {
-                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined });
+                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: 'guide' });
                 setEditingService(null);
             }
             setIsEditDialogOpen(isOpen);

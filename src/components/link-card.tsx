@@ -1,6 +1,6 @@
 'use client';
 
-import { Copy, Share2, AlertTriangle, ExternalLink, ShieldCheck } from 'lucide-react';
+import { Copy, Share2, AlertTriangle, ExternalLink, ShieldCheck, Phone, Mail, MapPin } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -22,7 +22,7 @@ import { COUNTRIES } from '@/lib/countries';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { ReportDialog } from './report-dialog';
-import { cn } from '@/lib/utils';
+import { Separator } from './ui/separator';
 
 interface LinkCardProps {
   service: Service;
@@ -86,18 +86,51 @@ export function LinkCard({ service }: LinkCardProps) {
           <CardDescription>{service.description}</CardDescription>
         </CardHeader>
         <CardContent className="flex-grow">
-          <Accordion type="single" collapsible>
-            <AccordionItem value="item-1">
-              <AccordionTrigger className="text-base">How to do it:</AccordionTrigger>
-              <AccordionContent>
-                <ol className="list-decimal space-y-2 pl-6 text-muted-foreground">
-                  {service.steps.map((step, index) => (
-                    <li key={index}>{step}</li>
-                  ))}
-                </ol>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+          {service.serviceType === 'guide' && service.steps && service.steps.length > 0 && (
+            <Accordion type="single" collapsible>
+              <AccordionItem value="item-1">
+                <AccordionTrigger className="text-base">How to do it:</AccordionTrigger>
+                <AccordionContent>
+                  <ol className="list-decimal space-y-2 pl-6 text-muted-foreground">
+                    {service.steps.map((step, index) => (
+                      <li key={index}>{step}</li>
+                    ))}
+                  </ol>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
+
+          {service.serviceType === 'info' && (service.phone || service.email || service.address) && (
+             <Accordion type="single" collapsible defaultValue="item-1">
+              <AccordionItem value="item-1">
+                <AccordionTrigger className="text-base">Contact Information</AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-3 text-muted-foreground">
+                    {service.phone && (
+                      <a href={`tel:${service.phone}`} className="flex items-center gap-3 group">
+                        <Phone className="h-4 w-4 text-primary" />
+                        <span className="group-hover:underline">{service.phone}</span>
+                      </a>
+                    )}
+                     {service.email && (
+                      <a href={`mailto:${service.email}`} className="flex items-center gap-3 group">
+                        <Mail className="h-4 w-4 text-primary" />
+                         <span className="group-hover:underline">{service.email}</span>
+                      </a>
+                    )}
+                     {service.address && (
+                      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(service.address)}`} target="_blank" rel="noopener noreferrer" className="flex items-start gap-3 group">
+                        <MapPin className="h-4 w-4 text-primary mt-1" />
+                         <span className="group-hover:underline">{service.address}</span>
+                      </a>
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
+
         </CardContent>
         <CardFooter className="flex flex-wrap gap-2 justify-between">
           <Button asChild className="bg-primary hover:bg-primary/90">
