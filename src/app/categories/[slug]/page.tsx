@@ -59,6 +59,9 @@ function CategoryPageClient({ slug }: CategoryPageClientProps) {
 
       let fetchedServices = servicesSnapshot.docs.map(doc => doc.data());
       
+      // Client-side filter for state, as Firestore cannot do '!=' or 'not-in' on a different field than the range filter.
+      // If we have a state param, we only want services for that state.
+      // If we don't have a state param, we want services for the whole country (where state is not defined).
       if (state) {
         fetchedServices = fetchedServices.filter(service => service.state === state);
       }
@@ -189,10 +192,10 @@ type CategoryPageProps = {
 };
 
 // This is the main export, a Server Component that wraps the client part.
-export default function CategoryPage({ params: { slug } }: CategoryPageProps) {
+export default function CategoryPage({ params }: CategoryPageProps) {
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <CategoryPageClient slug={slug} />
+      <CategoryPageClient slug={params.slug} />
     </Suspense>
   );
 }
