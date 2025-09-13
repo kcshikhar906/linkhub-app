@@ -19,8 +19,7 @@ type CategoryPageProps = {
   };
 };
 
-// This component fetches the data on the client
-function CategoryPageClient({ params }: CategoryPageProps) {
+export default function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = params;
   const searchParams = useSearchParams();
   const country = searchParams.get('country') || 'AU'; // Default to Australia
@@ -154,10 +153,4 @@ function CategoryPageClient({ params }: CategoryPageProps) {
       <Footer />
     </>
   );
-}
-
-
-// The main export remains a Server Component that wraps the client one.
-export default function CategoryPage({ params }: CategoryPageProps) {
-  return <CategoryPageClient params={params} />;
 }
