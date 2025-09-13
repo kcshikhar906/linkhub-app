@@ -84,11 +84,11 @@ import {
     PopoverContent,
     PopoverTrigger,
   } from "@/components/ui/popover"
-import { useForm, type SubmitHandler } from 'react-hook-form';
+import { useForm, type SubmitHandler, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState, useMemo, Suspense } from 'react';
+import { useEffect, useState, useMemo, Suspense, forwardRef } from 'react';
 import { db } from '@/lib/firebase';
 import {
   collection,
@@ -141,8 +141,6 @@ function ManageLinksPageComponent() {
   const { toast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [services, setServices] = useState<Service[]>([]);
-  const [states, setStates] = useState<State[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [isServicesLoading, setIsServicesLoading] = useState(true);
   
   // Dialog states
@@ -160,34 +158,7 @@ function ManageLinksPageComponent() {
 
   // Filters for the list
   const [countryFilter, setCountryFilter] = useState<string>('all');
-
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      verified: false,
-      tags: [],
-    }
-  });
-
-  const selectedCountry = form.watch('country');
-  const serviceType = form.watch('serviceType');
-  const selectedCategorySlug = form.watch('categorySlug');
-  const availableTags = useMemo(() => CATEGORY_TAGS[selectedCategorySlug] || [], [selectedCategorySlug]);
-
-
-  useEffect(() => {
-    const countryData = COUNTRIES.find((c) => c.code === selectedCountry);
-    setStates(countryData ? countryData.states : []);
-    // Do not reset state field if we are editing an existing service
-    if (!editingService) {
-        form.setValue('state', undefined);
-    }
-  }, [selectedCountry, form, editingService]);
   
-  useEffect(() => {
-    form.setValue('tags', []);
-  }, [selectedCategorySlug, form]);
-
   const openViewDialog = (service: Service) => {
     setViewingService(service);
     setIsViewDialogOpen(true);
@@ -204,7 +175,6 @@ function ManageLinksPageComponent() {
   const openEditDialog = async (serviceOrId: Service | string) => {
     let service: Service | null = null;
     if (typeof serviceOrId === 'string') {
-        setIsLoading(true);
         try {
             const serviceRef = doc(db, 'services', serviceOrId).withConverter(serviceConverter);
             const serviceSnap = await getDoc(serviceRef);
@@ -212,26 +182,18 @@ function ManageLinksPageComponent() {
                 service = serviceSnap.data();
             } else {
                  toast({ variant: 'destructive', title: 'Error', description: 'Service not found.' });
-                 setIsLoading(false);
                  return;
             }
         } catch (error) {
              toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch service.' });
-             setIsLoading(false);
              return;
         }
-        setIsLoading(false);
     } else {
         service = serviceOrId;
     }
     
     if (service) {
         setEditingService(service);
-        form.reset({
-            ...service,
-            steps: service.steps?.join('\n') || '',
-            tags: service.tags || [],
-        });
         setIsEditDialogOpen(true);
     }
   }
@@ -293,52 +255,10 @@ function ManageLinksPageComponent() {
     return counts;
   }, [services, countryFilter]);
 
-  const handleFormSubmit: SubmitHandler<FormValues> = async (data) => {
-    setIsLoading(true);
-    const isGuide = data.serviceType === 'guide';
-    
-    const serviceData = {
-      ...data,
-      tags: data.tags || [],
-      steps: isGuide ? data.steps?.split('\n').filter((step) => step.trim() !== '') : null,
-      phone: !isGuide ? data.phone : null,
-      email: !isGuide ? data.email : null,
-      address: !isGuide ? data.address : null,
-      status: 'published' as const,
-      verified: data.verified || false,
-    };
-    
-    try {
-        if (editingService) {
-            // Update existing service
-            const serviceRef = doc(db, 'services', editingService.id);
-            await updateDoc(serviceRef, serviceConverter.toFirestore(serviceData));
-            toast({
-                title: 'Service Updated',
-                description: 'The service has been successfully updated.',
-            });
-            setIsEditDialogOpen(false);
-        } else {
-            // Add new service
-            const servicesCol = collection(db, 'services');
-            await addDoc(servicesCol.withConverter(serviceConverter), serviceConverter.toFirestore(serviceData));
-            toast({
-                title: 'Service Added',
-                description: 'The new service has been published.',
-            });
-            setIsAddDialogOpen(false);
-        }
-        form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: undefined, tags: [] });
-        
-    } catch (error) {
-      console.error('Error saving service: ', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to save service.',
-      });
-    }
-    setIsLoading(false);
+  const handleFormSuccess = () => {
+    setIsAddDialogOpen(false);
+    setIsEditDialogOpen(false);
+    setEditingService(null);
   };
 
   const handleDelete = async (e: React.MouseEvent<HTMLButtonElement, MouseEvent>, id: string, title: string) => {
@@ -557,159 +477,6 @@ function ManageLinksPageComponent() {
     </Card>
   );
 
-  const ServiceFormFields = () => (
-    <div className="space-y-6 py-6 max-h-[75vh] overflow-y-auto pr-4 -mr-4">
-        {/* Core Details */}
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg"><FileText className="h-5 w-5"/> Core Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                 <div className="grid gap-3">
-                    <Label htmlFor="title">Service Title</Label>
-                    <Input id="title" type="text" placeholder="e.g., How to apply for a TFN" {...form.register('title')} />
-                    {form.formState.errors.title && <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>}
-                </div>
-                <div className="grid gap-3">
-                    <Label htmlFor="link">Official URL</Label>
-                    <Input id="link" type="url" placeholder="https://service.gov.au/..." {...form.register('link')} />
-                    {form.formState.errors.link && <p className="text-sm text-destructive">{form.formState.errors.link.message}</p>}
-                </div>
-                <div className="grid gap-3">
-                    <Label htmlFor="description">Short Description</Label>
-                    <Textarea id="description" placeholder="A brief explanation of the service." {...form.register('description')} />
-                    {form.formState.errors.description && <p className="text-sm text-destructive">{form.formState.errors.description.message}</p>}
-                </div>
-            </CardContent>
-        </Card>
-
-        {/* Categorization */}
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg"><Map className="h-5 w-5"/> Location & Category</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="grid gap-3">
-                        <Label htmlFor="country">Country</Label>
-                        <Select value={form.watch('country')} onValueChange={(value) => form.setValue('country', value)}>
-                        <SelectTrigger id="country"><SelectValue placeholder="Select a country" /></SelectTrigger>
-                        <SelectContent>
-                            {COUNTRIES.map((c) => (<SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>))}
-                        </SelectContent>
-                        </Select>
-                        {form.formState.errors.country && <p className="text-sm text-destructive">{form.formState.errors.country.message}</p>}
-                    </div>
-                    <div className="grid gap-3">
-                        <Label htmlFor="state">State / Province</Label>
-                        <Select value={form.watch('state')} onValueChange={(value) => form.setValue('state', value)} disabled={states.length === 0}>
-                        <SelectTrigger id="state"><SelectValue placeholder="Select a state (if applicable)" /></SelectTrigger>
-                        <SelectContent>
-                            {states.map((s) => (<SelectItem key={s.code} value={s.code}>{s.name}</SelectItem>))}
-                        </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-                <div className="grid gap-3">
-                    <Label htmlFor="categorySlug">Category</Label>
-                    <Select value={form.watch('categorySlug')} onValueChange={(value) => form.setValue('categorySlug', value)}>
-                    <SelectTrigger id="categorySlug" aria-label="Select category"><SelectValue placeholder="Select category" /></SelectTrigger>
-                    <SelectContent>
-                        {categories.map((cat) => (<SelectItem key={cat.slug} value={cat.slug}>{cat.name}</SelectItem>))}
-                    </SelectContent>
-                    </Select>
-                    {form.formState.errors.categorySlug && <p className="text-sm text-destructive">{form.formState.errors.categorySlug.message}</p>}
-                </div>
-                {availableTags.length > 0 && (
-                    <div className="grid gap-3">
-                        <Label>Tags / Sub-categories</Label>
-                        <MultiSelect
-                            options={availableTags.map(tag => ({ value: tag, label: tag }))}
-                            selected={form.watch('tags') || []}
-                            onChange={(selected) => form.setValue('tags', selected)}
-                            placeholder="Select tags..."
-                         />
-                         <p className="text-xs text-muted-foreground">Select one or more tags to help users filter.</p>
-                    </div>
-                )}
-            </CardContent>
-        </Card>
-        
-        {/* Service Content */}
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg"><BookText className="h-5 w-5"/> Service Content</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                 <div className="grid gap-3">
-                    <Label>Service Type</Label>
-                     <ToggleGroup
-                        type="single"
-                        value={serviceType}
-                        onValueChange={(value: 'guide' | 'info') => {
-                            if (value) form.setValue('serviceType', value)
-                        }}
-                        className="grid grid-cols-2"
-                        >
-                        <ToggleGroupItem value="guide" aria-label="Select guide type">
-                            <BookText className="mr-2 h-4 w-4" />
-                            Guide
-                        </ToggleGroupItem>
-                        <ToggleGroupItem value="info" aria-label="Select info type">
-                            <Info className="mr-2 h-4 w-4" />
-                            Info
-                        </ToggleGroupItem>
-                    </ToggleGroup>
-                    {form.formState.errors.serviceType && <p className="text-sm text-destructive">{form.formState.errors.serviceType.message}</p>}
-                </div>
-                
-                {serviceType === 'guide' && (
-                    <div className="grid gap-3">
-                        <Label htmlFor="steps">Steps (one per line)</Label>
-                        <Textarea id="steps" rows={5} placeholder="Step 1...\nStep 2...\nStep 3..." {...form.register('steps')} />
-                        {form.formState.errors.steps && <p className="text-sm text-destructive">{form.formState.errors.steps.message}</p>}
-                    </div>
-                )}
-                
-                {serviceType === 'info' && (
-                    <div className="space-y-4 rounded-md border p-4">
-                        <h4 className="font-medium text-sm">Contact Information</h4>
-                         <div className="grid gap-3">
-                            <Label htmlFor="phone">Phone Number</Label>
-                             <div className="relative">
-                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input id="phone" type="tel" placeholder="e.g., (02) 1234 5678" {...form.register('phone')} className="pl-10" />
-                             </div>
-                        </div>
-                         <div className="grid gap-3">
-                            <Label htmlFor="email">Email Address</Label>
-                             <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input id="email" type="email" placeholder="e.g., contact@business.com.au" {...form.register('email')} className="pl-10"/>
-                             </div>
-                            {form.formState.errors.email && <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>}
-                        </div>
-                         <div className="grid gap-3">
-                            <Label htmlFor="address">Physical Address</Label>
-                             <div className="relative">
-                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input id="address" type="text" placeholder="e.g., 123 Example St, Sydney NSW 2000" {...form.register('address')} className="pl-10" />
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </CardContent>
-        </Card>
-        
-        <div className="flex items-center space-x-2 pt-2">
-            <Checkbox id="verified" checked={form.watch('verified')} onCheckedChange={(checked) => form.setValue('verified', !!checked)} />
-            <Label htmlFor="verified" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                Mark as Verified
-            </Label>
-        </div>
-    </div>
-  );
-
   return (
     <div className="grid flex-1 items-start gap-4 md:gap-8">
       <div className="flex justify-between items-center">
@@ -722,13 +489,7 @@ function ManageLinksPageComponent() {
         </div>
         
         {/* ADD DIALOG */}
-        <Dialog open={isAddDialogOpen} onOpenChange={(isOpen) => {
-            if (!isOpen) {
-                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: undefined, tags: [] });
-                setEditingService(null);
-            }
-            setIsAddDialogOpen(isOpen);
-        }}>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
                 <Button>
                     <PlusCircle className="mr-2" />
@@ -736,50 +497,35 @@ function ManageLinksPageComponent() {
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-2xl">
-                <form onSubmit={form.handleSubmit(handleFormSubmit)}>
-                    <DialogHeader>
-                        <DialogTitle>Add a New Service</DialogTitle>
-                        <DialogDescription>
-                            Manually add a new service to the directory. This will be published immediately.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <ServiceFormFields />
-                    <DialogFooter>
-                      <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                      <Button type="submit" disabled={isLoading}>
-                          {isLoading ? <Loader2 className="mr-2 animate-spin" /> : <PlusCircle className="mr-2" />}
-                          {isLoading ? 'Adding...' : 'Add Service'}
-                      </Button>
-                    </DialogFooter>
-                </form>
+                <DialogHeader>
+                    <DialogTitle>Add a New Service</DialogTitle>
+                    <DialogDescription>
+                        Manually add a new service to the directory. This will be published immediately.
+                    </DialogDescription>
+                </DialogHeader>
+                <ServiceForm 
+                    categories={categories}
+                    onSuccess={handleFormSuccess}
+                />
             </DialogContent>
         </Dialog>
 
         {/* EDIT DIALOG */}
-        <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => {
-            if (!isOpen) {
-                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: undefined, tags: [] });
-                setEditingService(null);
-            }
-            setIsEditDialogOpen(isOpen);
-        }}>
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
              <DialogContent className="sm:max-w-2xl">
-                <form onSubmit={form.handleSubmit(handleFormSubmit)}>
-                    <DialogHeader>
-                        <DialogTitle>Edit Service</DialogTitle>
-                        <DialogDescription>
-                            Update the details for &quot;{editingService?.title}&quot;.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <ServiceFormFields />
-                    <DialogFooter>
-                      <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                      <Button type="submit" disabled={isLoading}>
-                          {isLoading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />}
-                          {isLoading ? 'Saving...' : 'Save Changes'}
-                      </Button>
-                    </DialogFooter>
-                </form>
+                <DialogHeader>
+                    <DialogTitle>Edit Service</DialogTitle>
+                    <DialogDescription>
+                        Update the details for &quot;{editingService?.title}&quot;.
+                    </DialogDescription>
+                </DialogHeader>
+                {editingService && (
+                    <ServiceForm 
+                        categories={categories}
+                        editingService={editingService}
+                        onSuccess={handleFormSuccess}
+                    />
+                )}
             </DialogContent>
         </Dialog>
 
@@ -879,6 +625,268 @@ function ManageLinksPageComponent() {
     </div>
   );
 }
+
+// Encapsulated Service Form Component
+interface ServiceFormProps {
+    categories: Category[];
+    editingService?: Service | null;
+    onSuccess: () => void;
+}
+
+function ServiceForm({ categories, editingService = null, onSuccess }: ServiceFormProps) {
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(false);
+    const [states, setStates] = useState<State[]>([]);
+    
+    const form = useForm<FormValues>({
+        resolver: zodResolver(formSchema),
+        defaultValues: editingService 
+            ? {
+                ...editingService,
+                steps: editingService.steps?.join('\n') || '',
+                tags: editingService.tags || [],
+              }
+            : {
+                verified: false,
+                tags: [],
+              }
+    });
+
+    const selectedCountry = form.watch('country');
+    const serviceType = form.watch('serviceType');
+    const selectedCategorySlug = form.watch('categorySlug');
+    const availableTags = useMemo(() => CATEGORY_TAGS[selectedCategorySlug] || [], [selectedCategorySlug]);
+
+    useEffect(() => {
+        const countryData = COUNTRIES.find((c) => c.code === selectedCountry);
+        setStates(countryData ? countryData.states : []);
+        // Don't reset state field if we are not actively changing the country
+    }, [selectedCountry]);
+
+    useEffect(() => {
+        if (!editingService) {
+            form.setValue('tags', []);
+        }
+    }, [selectedCategorySlug, form, editingService]);
+    
+    const handleFormSubmit: SubmitHandler<FormValues> = async (data) => {
+        setIsLoading(true);
+        const isGuide = data.serviceType === 'guide';
+        
+        const serviceData = {
+          ...data,
+          tags: data.tags || [],
+          steps: isGuide ? data.steps?.split('\n').filter((step) => step.trim() !== '') : null,
+          phone: !isGuide ? data.phone : null,
+          email: !isGuide ? data.email : null,
+          address: !isGuide ? data.address : null,
+          status: 'published' as const,
+          verified: data.verified || false,
+        };
+        
+        try {
+            if (editingService) {
+                // Update existing service
+                const serviceRef = doc(db, 'services', editingService.id);
+                await updateDoc(serviceRef, serviceConverter.toFirestore(serviceData));
+                toast({ title: 'Service Updated', description: 'The service has been successfully updated.' });
+            } else {
+                // Add new service
+                const servicesCol = collection(db, 'services');
+                await addDoc(servicesCol.withConverter(serviceConverter), serviceConverter.toFirestore(serviceData));
+                toast({ title: 'Service Added', description: 'The new service has been published.' });
+            }
+            onSuccess();
+        } catch (error) {
+          console.error('Error saving service: ', error);
+          toast({ variant: 'destructive', title: 'Error', description: 'Failed to save service.' });
+        }
+        setIsLoading(false);
+    };
+
+    return (
+        <FormProvider {...form}>
+            <form onSubmit={form.handleSubmit(handleFormSubmit)}>
+                <ServiceFormFields categories={categories} states={states} availableTags={availableTags} serviceType={serviceType} />
+                <DialogFooter className="pt-6 border-t">
+                    <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                    <Button type="submit" disabled={isLoading}>
+                        {isLoading ? <Loader2 className="mr-2 animate-spin" /> : (editingService ? <Save className="mr-2" /> : <PlusCircle className="mr-2" />)}
+                        {isLoading ? 'Saving...' : (editingService ? 'Save Changes' : 'Add Service')}
+                    </Button>
+                </DialogFooter>
+            </form>
+        </FormProvider>
+    );
+}
+
+// UI Fields for the form
+interface ServiceFormFieldsProps {
+    categories: Category[];
+    states: State[];
+    availableTags: string[];
+    serviceType?: 'guide' | 'info';
+}
+
+const ServiceFormFields = forwardRef<HTMLDivElement, ServiceFormFieldsProps>(
+  ({ categories, states, availableTags, serviceType }, ref) => {
+    const form = useFormContext<FormValues>();
+
+    return (
+      <div ref={ref} className="space-y-6 py-6 max-h-[75vh] overflow-y-auto pr-4 -mr-4">
+          {/* Core Details */}
+          <Card>
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg"><FileText className="h-5 w-5"/> Core Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                   <div className="grid gap-3">
+                      <Label htmlFor="title">Service Title</Label>
+                      <Input id="title" type="text" placeholder="e.g., How to apply for a TFN" {...form.register('title')} />
+                      {form.formState.errors.title && <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>}
+                  </div>
+                  <div className="grid gap-3">
+                      <Label htmlFor="link">Official URL</Label>
+                      <Input id="link" type="url" placeholder="https://service.gov.au/..." {...form.register('link')} />
+                      {form.formState.errors.link && <p className="text-sm text-destructive">{form.formState.errors.link.message}</p>}
+                  </div>
+                  <div className="grid gap-3">
+                      <Label htmlFor="description">Short Description</Label>
+                      <Textarea id="description" placeholder="A brief explanation of the service." {...form.register('description')} />
+                      {form.formState.errors.description && <p className="text-sm text-destructive">{form.formState.errors.description.message}</p>}
+                  </div>
+              </CardContent>
+          </Card>
+
+          {/* Categorization */}
+          <Card>
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg"><Map className="h-5 w-5"/> Location & Category</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid gap-3">
+                          <Label htmlFor="country">Country</Label>
+                          <Select value={form.watch('country')} onValueChange={(value) => form.setValue('country', value, { shouldValidate: true })}>
+                          <SelectTrigger id="country"><SelectValue placeholder="Select a country" /></SelectTrigger>
+                          <SelectContent>
+                              {COUNTRIES.map((c) => (<SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>))}
+                          </SelectContent>
+                          </Select>
+                          {form.formState.errors.country && <p className="text-sm text-destructive">{form.formState.errors.country.message}</p>}
+                      </div>
+                      <div className="grid gap-3">
+                          <Label htmlFor="state">State / Province</Label>
+                          <Select value={form.watch('state')} onValueChange={(value) => form.setValue('state', value)} disabled={states.length === 0}>
+                          <SelectTrigger id="state"><SelectValue placeholder="Select a state (if applicable)" /></SelectTrigger>
+                          <SelectContent>
+                              {states.map((s) => (<SelectItem key={s.code} value={s.code}>{s.name}</SelectItem>))}
+                          </SelectContent>
+                          </Select>
+                      </div>
+                  </div>
+                  <div className="grid gap-3">
+                      <Label htmlFor="categorySlug">Category</Label>
+                      <Select value={form.watch('categorySlug')} onValueChange={(value) => form.setValue('categorySlug', value, { shouldValidate: true })}>
+                      <SelectTrigger id="categorySlug" aria-label="Select category"><SelectValue placeholder="Select category" /></SelectTrigger>
+                      <SelectContent>
+                          {categories.map((cat) => (<SelectItem key={cat.slug} value={cat.slug}>{cat.name}</SelectItem>))}
+                      </SelectContent>
+                      </Select>
+                      {form.formState.errors.categorySlug && <p className="text-sm text-destructive">{form.formState.errors.categorySlug.message}</p>}
+                  </div>
+                  {availableTags.length > 0 && (
+                      <div className="grid gap-3">
+                          <Label>Tags / Sub-categories</Label>
+                          <MultiSelect
+                              options={availableTags.map(tag => ({ value: tag, label: tag }))}
+                              selected={form.watch('tags') || []}
+                              onChange={(selected) => form.setValue('tags', selected)}
+                              placeholder="Select tags..."
+                           />
+                           <p className="text-xs text-muted-foreground">Select one or more tags to help users filter.</p>
+                      </div>
+                  )}
+              </CardContent>
+          </Card>
+          
+          {/* Service Content */}
+          <Card>
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg"><BookText className="h-5 w-5"/> Service Content</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                   <div className="grid gap-3">
+                      <Label>Service Type</Label>
+                       <ToggleGroup
+                          type="single"
+                          value={serviceType}
+                          onValueChange={(value: 'guide' | 'info') => {
+                              if (value) form.setValue('serviceType', value, { shouldValidate: true })
+                          }}
+                          className="grid grid-cols-2"
+                          >
+                          <ToggleGroupItem value="guide" aria-label="Select guide type">
+                              <BookText className="mr-2 h-4 w-4" />
+                              Guide
+                          </ToggleGroupItem>
+                          <ToggleGroupItem value="info" aria-label="Select info type">
+                              <Info className="mr-2 h-4 w-4" />
+                              Info
+                          </ToggleGroupItem>
+                      </ToggleGroup>
+                      {form.formState.errors.serviceType && <p className="text-sm text-destructive">{form.formState.errors.serviceType.message}</p>}
+                  </div>
+                  
+                  {serviceType === 'guide' && (
+                      <div className="grid gap-3">
+                          <Label htmlFor="steps">Steps (one per line)</Label>
+                          <Textarea id="steps" rows={5} placeholder="Step 1...\nStep 2...\nStep 3..." {...form.register('steps')} />
+                          {form.formState.errors.steps && <p className="text-sm text-destructive">{form.formState.errors.steps.message}</p>}
+                      </div>
+                  )}
+                  
+                  {serviceType === 'info' && (
+                      <div className="space-y-4 rounded-md border p-4">
+                          <h4 className="font-medium text-sm">Contact Information</h4>
+                           <div className="grid gap-3">
+                              <Label htmlFor="phone">Phone Number</Label>
+                               <div className="relative">
+                                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                  <Input id="phone" type="tel" placeholder="e.g., (02) 1234 5678" {...form.register('phone')} className="pl-10" />
+                               </div>
+                          </div>
+                           <div className="grid gap-3">
+                              <Label htmlFor="email">Email Address</Label>
+                               <div className="relative">
+                                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                  <Input id="email" type="email" placeholder="e.g., contact@business.com.au" {...form.register('email')} className="pl-10"/>
+                               </div>
+                              {form.formState.errors.email && <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>}
+                          </div>
+                           <div className="grid gap-3">
+                              <Label htmlFor="address">Physical Address</Label>
+                               <div className="relative">
+                                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                  <Input id="address" type="text" placeholder="e.g., 123 Example St, Sydney NSW 2000" {...form.register('address')} className="pl-10" />
+                              </div>
+                          </div>
+                      </div>
+                  )}
+              </CardContent>
+          </Card>
+          
+          <div className="flex items-center space-x-2 pt-2">
+              <Checkbox id="verified" checked={form.watch('verified')} onCheckedChange={(checked) => form.setValue('verified', !!checked)} />
+              <Label htmlFor="verified" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Mark as Verified
+              </Label>
+          </div>
+      </div>
+    );
+  }
+);
+ServiceFormFields.displayName = "ServiceFormFields";
 
 interface MultiSelectProps {
     options: { value: string; label: string }[];
