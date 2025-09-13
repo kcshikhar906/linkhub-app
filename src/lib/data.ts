@@ -11,13 +11,19 @@ import {
   Briefcase,
   Scale,
   Users,
-  Phone,
   Siren,
   Building,
   HeartHandshake,
   ShieldCheck,
   Mail,
   MapPin,
+  Gavel,
+  Vote,
+  Baby,
+  HandHelping,
+  Factory,
+  MessageSquare,
+  ShieldAlert
 } from 'lucide-react';
 import { Timestamp, type DocumentData, type QueryDocumentSnapshot, type ServerTimestamp } from 'firebase/firestore';
 
@@ -75,19 +81,28 @@ export type ReportedLink = {
 
 // Object of available icons
 export const ICONS: { [key: string]: LucideIcon } = {
-    Plane,
+    // New
+    Briefcase, // Business & Corporate
+    MessageSquare, // Communications
+    ShieldAlert, // Consumer & Rights Protection
+    Car, // Driving & Transport
+    GraduationCap, // Education & Training
+    Siren, // Emergency Services
+    Baby, // Family & Community
+    Vote, // Government & Civic Duty
+    HeartPulse, // Health & Medical
+    Home, // Housing & Property
+    Gavel, // Legal & Justice
+    Banknote, // Money & Taxes
+    MountainSnow, // Nepal Specific
+    HandHelping, // Social & Community Support
+    Plane, // Visas & Immigration
+    Factory, // Work & Employment
+
+    // Old (kept for compatibility)
     Landmark,
-    HeartPulse,
-    GraduationCap,
-    Car,
-    Banknote,
-    MountainSnow,
-    Home,
-    Briefcase,
     Scale,
     Users,
-    Phone,
-    Siren,
     Building,
     HeartHandshake,
     ShieldCheck,
