@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { Menu, PlusCircle, Search, Shield, LogIn, LogOut } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Menu, PlusCircle, Search, Shield } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { LinkHubLogo } from '@/components/icons';
@@ -10,9 +10,6 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { useAuth } from '@/context/auth-context';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import { useToast } from '@/hooks/use-toast';
 import { LocationSelector } from './location-selector';
 
 const navLinks = [
@@ -27,17 +24,6 @@ export function Header() {
   const pathname = usePathname();
   const [isSheetOpen, setSheetOpen] = useState(false);
   const { user } = useAuth();
-  const router = useRouter();
-  const { toast } = useToast();
-
-  const handleLogout = async () => {
-    await signOut(auth);
-    toast({
-      title: 'Logged Out',
-      description: 'You have been successfully logged out.',
-    });
-    router.push('/');
-  };
 
   const NavLink = ({ href, label }: { href: string; label:string; }) => {
     const isActive =
@@ -71,19 +57,6 @@ export function Header() {
     </Link>
   ) : null;
 
-  const authButton = user ? (
-    <Button onClick={handleLogout} variant="outline" size="sm">
-      <LogOut className="h-4 w-4 mr-2" />
-      Logout
-    </Button>
-  ) : (
-    <Button asChild variant="outline" size="sm">
-      <Link href="/login">
-        <LogIn className="h-4 w-4 mr-2" />
-        Admin Login
-      </Link>
-    </Button>
-  );
 
   if (isMobile) {
     return (
@@ -122,9 +95,6 @@ export function Header() {
                     ))}
                     {adminLink}
                   </nav>
-                  <div className="mt-8 pt-4 border-t">
-                    {authButton}
-                  </div>
                 </div>
               </SheetContent>
             </Sheet>
@@ -161,7 +131,6 @@ export function Header() {
                     Suggest a Link
                 </Link>
             </Button>
-            {authButton}
         </div>
       </div>
     </header>

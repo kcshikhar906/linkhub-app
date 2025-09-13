@@ -1,7 +1,11 @@
+'use client';
+
 import Link from 'next/link';
+import { useAuth } from '@/context/auth-context';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
+  const { user } = useAuth();
 
   return (
     <footer className="border-t">
@@ -21,6 +25,15 @@ export function Footer() {
             <Link href="#" className="hover:text-primary transition-colors">
               Report an Error
             </Link>
+             {user ? (
+                <Link href="/admin" className="hover:text-primary transition-colors">
+                    Admin Dashboard
+                </Link>
+             ) : (
+                <Link href="/login" className="hover:text-primary transition-colors">
+                    Admin
+                </Link>
+             )}
           </nav>
         </div>
       </div>
