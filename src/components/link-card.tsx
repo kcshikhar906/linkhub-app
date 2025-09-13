@@ -1,6 +1,6 @@
 'use client';
 
-import { Copy, Share2, AlertTriangle, ExternalLink, ShieldCheck, Phone, Mail, MapPin } from 'lucide-react';
+import { Copy, Share2, AlertTriangle, ExternalLink, ShieldCheck, Phone, Mail, MapPin, Image as ImageIcon } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -23,6 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { ReportDialog } from './report-dialog';
 import { ScrollArea } from './ui/scroll-area';
+import Image from 'next/image';
 
 
 interface LinkCardProps {
@@ -72,19 +73,28 @@ export function LinkCard({ service }: LinkCardProps) {
         service={service} 
       />
         <CardHeader>
-          <div className="flex justify-between items-start gap-4">
-             <CardTitle className="font-headline text-xl flex-1">{service.title}</CardTitle>
-             <div className="flex flex-col items-end gap-2 shrink-0">
-                {service.verified && (
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-                        <ShieldCheck className="h-4 w-4 mr-1" />
-                        Verified
-                    </Badge>
-                )}
-                {location && <Badge variant="secondary">{location}</Badge>}
+          <div className="flex items-start gap-4">
+             {service.iconDataUri ? (
+                <Image src={service.iconDataUri} alt={`${service.title} icon`} width={56} height={56} className="rounded-md" />
+             ) : (
+                <div className="w-14 h-14 flex-shrink-0 bg-secondary rounded-md flex items-center justify-center">
+                    <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                </div>
+             )}
+             <div className="flex-1">
+                <CardTitle className="font-headline text-xl">{service.title}</CardTitle>
+                <div className="flex items-center flex-wrap gap-2 mt-2">
+                    {service.verified && (
+                        <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+                            <ShieldCheck className="h-4 w-4 mr-1" />
+                            Verified
+                        </Badge>
+                    )}
+                    {location && <Badge variant="secondary">{location}</Badge>}
+                </div>
              </div>
           </div>
-          <CardDescription>{service.description}</CardDescription>
+          <CardDescription className="pt-4">{service.description}</CardDescription>
             {service.tags && service.tags.length > 0 && (
                 <div className="flex flex-wrap gap-2 pt-2">
                     {service.tags.map(tag => (
