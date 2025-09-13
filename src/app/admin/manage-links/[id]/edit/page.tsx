@@ -74,6 +74,7 @@ export default function EditLinkPage({ params }: EditLinkPageProps) {
     resolver: zodResolver(formSchema),
   });
 
+  const serviceId = params.id;
   const selectedCountry = form.watch('country');
 
   useEffect(() => {
@@ -82,9 +83,9 @@ export default function EditLinkPage({ params }: EditLinkPageProps) {
   }, [selectedCountry]);
 
 
-  const fetchService = useCallback(async (serviceId: string) => {
+  const fetchService = useCallback(async (id: string) => {
       try {
-        const serviceRef = doc(db, 'services', serviceId).withConverter(serviceConverter);
+        const serviceRef = doc(db, 'services', id).withConverter(serviceConverter);
         const serviceSnap = await getDoc(serviceRef);
 
         if (!serviceSnap.exists()) {
@@ -108,7 +109,6 @@ export default function EditLinkPage({ params }: EditLinkPageProps) {
 
 
   useEffect(() => {
-    const serviceId = params.id;
     if (serviceId) {
         fetchService(serviceId);
     }
@@ -127,12 +127,12 @@ export default function EditLinkPage({ params }: EditLinkPageProps) {
     return () => {
       fetchCategories();
     };
-  }, [params.id, fetchService]);
+  }, [serviceId, fetchService]);
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setIsLoading(true);
     try {
-      const serviceRef = doc(db, 'services', params.id);
+      const serviceRef = doc(db, 'services', serviceId);
       const serviceData = {
         ...data,
         steps: data.steps.split('\n').filter((step) => step.trim() !== ''),
