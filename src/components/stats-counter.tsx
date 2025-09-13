@@ -28,7 +28,7 @@ function StatItem({ icon: Icon, to, label }: StatItemProps) {
           const interval = setInterval(() => {
             const increment = Math.floor(Math.random() * 2) + 1;
             count.set(count.get() + increment);
-          }, 4000 + Math.random() * 2000); // every 4-6 seconds
+          }, 2000 + Math.random() * 1000); // every 4-6 seconds
 
           return () => clearInterval(interval);
         },

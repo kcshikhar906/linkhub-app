@@ -146,8 +146,8 @@ export default async function Home({ searchParams }: { searchParams: { country?:
 
       <StatsCounter />
 
-      <div className="container mx-auto px-4 py-16 md:py-24">
-        <section className="mb-16 md:mb-24">
+      <div className="container mx-auto px-4 py-12 md:py-16">
+        <section className="mb-12 md:mb-16">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
               Browse by Category
