@@ -117,28 +117,28 @@ export default async function Home({ searchParams }: { searchParams: { country?:
     <Header />
     <WelcomeGuide />
     <main className="flex-1">
-      <div className="container mx-auto px-4 py-8 md:py-16">
-        <section className="relative h-[60vh] flex items-center justify-center text-center text-white overflow-hidden rounded-2xl shadow-2xl mb-16 md:mb-24">
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="absolute z-0 w-full h-full object-cover"
-          >
-            <source src="/logo/hero-video.webm" type="video/mp4" />
-            Your browser does not support the video tag.
-          </video>
-          <div className="absolute z-10 w-full h-full bg-black/50"></div>
-          <div className="z-20 container px-4">
-              <TypingEffect />
-              <div className="max-w-2xl mx-auto mt-8">
-                <SearchBar />
-              </div>
-          </div>
-        </section>
+      {/* Hero section is pulled up behind the sticky header with a negative margin */}
+      <section className="relative h-[70vh] flex items-center justify-center text-center text-white overflow-hidden -mt-[64px] pt-[64px]">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute z-0 w-full h-full object-cover"
+        >
+          <source src="/hero-video.mp4" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+        <div className="absolute z-10 w-full h-full bg-black/50"></div>
+        <div className="z-20 container px-4">
+            <TypingEffect />
+            <div className="max-w-2xl mx-auto mt-8">
+              <SearchBar />
+            </div>
+        </div>
+      </section>
 
-
+      <div className="container mx-auto px-4 py-16 md:py-24">
         <section className="mb-16 md:mb-24">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
@@ -192,7 +192,6 @@ export default async function Home({ searchParams }: { searchParams: { country?:
              </div>
         </section>
         )}
-
       </div>
     </main>
     <Footer />
