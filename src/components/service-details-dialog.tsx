@@ -2,7 +2,9 @@
 
 import {
   Dialog,
-  DialogContent
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import type { Service } from '@/lib/data';
 import { LinkCard } from './link-card';
@@ -22,6 +24,10 @@ export function ServiceDetailsDialog({ isOpen, onOpenChange, service }: ServiceD
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl p-0 gap-0">
+          {/* A DialogTitle is required for accessibility. We make it visually hidden. */}
+          <DialogHeader className="sr-only">
+             <DialogTitle>{service.title}</DialogTitle>
+          </DialogHeader>
           <div className="flex flex-col">
             <LinkCard service={service} />
           </div>
