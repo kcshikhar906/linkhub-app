@@ -11,6 +11,7 @@ import { COUNTRIES } from '@/lib/countries';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight } from 'lucide-react';
 import { TypingEffect } from '@/components/typing-effect';
+import { WelcomeGuide } from '@/components/welcome-guide';
 
 const popularSearches = [
     {
@@ -114,6 +115,7 @@ export default async function Home({ searchParams }: { searchParams: { country?:
   return (
    <>
     <Header />
+    <WelcomeGuide />
     <main className="flex-1">
       <div className="container mx-auto px-4 py-8 md:py-16">
         <section className="relative h-[60vh] flex items-center justify-center text-center text-white overflow-hidden rounded-2xl shadow-2xl mb-16 md:mb-24">
