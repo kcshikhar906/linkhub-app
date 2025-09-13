@@ -10,6 +10,7 @@ import { type Category, categoryConverter, type Service, serviceConverter } from
 import { COUNTRIES } from '@/lib/countries';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight } from 'lucide-react';
+import { TypingEffect } from '@/components/typing-effect';
 
 const popularSearches = [
     {
@@ -108,19 +109,27 @@ export default async function Home({ searchParams }: { searchParams: { country?:
    <>
     <Header />
     <main className="flex-1">
-      <div className="container mx-auto px-4 py-8 md:py-16">
-        <section className="text-center mb-16 md:mb-24">
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tighter mb-4 font-headline">
-            Navigate Bureaucracy, Simplified.
-          </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
-            Your clear, step-by-step guide to essential services in {countryName}. Find what you need, fast.
-          </p>
-          <div className="max-w-2xl mx-auto">
-            <SearchBar />
-          </div>
-        </section>
+       <section className="relative h-[60vh] flex items-center justify-center text-center text-white overflow-hidden">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute z-0 w-full h-full object-cover"
+        >
+          <source src="/hero-video.mp4" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+        <div className="absolute z-10 w-full h-full bg-black/50"></div>
+        <div className="z-20 container px-4">
+            <TypingEffect />
+            <div className="max-w-2xl mx-auto mt-8">
+              <SearchBar />
+            </div>
+        </div>
+      </section>
 
+      <div className="container mx-auto px-4 py-8 md:py-16">
         <section className="mb-16 md:mb-24">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
