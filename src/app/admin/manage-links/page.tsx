@@ -784,7 +784,7 @@ function ManageLinksPageComponent() {
 
         {/* VIEW DIALOG */}
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="sm:max-w-lg">
                 {viewingService && (
                     <>
                         <DialogHeader>
@@ -793,71 +793,73 @@ function ManageLinksPageComponent() {
                                 Read-only view of the service details. Click Edit to make changes.
                             </DialogDescription>
                         </DialogHeader>
-                        <ScrollArea className="max-h-[70vh] pr-6 -mr-6">
-                            <div className="space-y-6 py-4">
-                                <div className="space-y-1">
-                                    <h4 className="font-semibold text-sm text-muted-foreground">Description</h4>
-                                    <p>{viewingService.description}</p>
-                                </div>
-
-                                <div className="space-y-1">
-                                    <h4 className="font-semibold text-sm text-muted-foreground">Official URL</h4>
-                                    <a href={viewingService.link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all flex items-center gap-1">
-                                        {viewingService.link} <ExternalLink className="h-4 w-4" />
-                                    </a>
-                                </div>
+                        <ScrollArea className="max-h-[60vh] pr-4 -mr-4">
+                            <div className="space-y-4 py-4 text-sm">
+                                <p className="text-muted-foreground">{viewingService.description}</p>
                                 
                                 <Separator />
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1">
-                                        <h4 className="font-semibold text-sm text-muted-foreground">Category</h4>
-                                        <p>{categories.find(c => c.slug === viewingService.categorySlug)?.name || viewingService.categorySlug}</p>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Official URL</span>
+                                        <a href={viewingService.link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1.5 font-medium">
+                                            Visit Link <ExternalLink className="h-4 w-4" />
+                                        </a>
                                     </div>
-                                    <div className="space-y-1">
-                                        <h4 className="font-semibold text-sm text-muted-foreground">Location</h4>
-                                        <p>{viewingService.country}{viewingService.state && `, ${viewingService.state}`}</p>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Category</span>
+                                        <span className="font-medium">{categories.find(c => c.slug === viewingService.categorySlug)?.name || viewingService.categorySlug}</span>
                                     </div>
-                                     <div className="space-y-1">
-                                        <h4 className="font-semibold text-sm text-muted-foreground">Service Type</h4>
-                                        <p className="capitalize">{viewingService.serviceType}</p>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Location</span>
+                                        <span className="font-medium">{viewingService.country}{viewingService.state && `, ${viewingService.state}`}</span>
                                     </div>
-                                     <div className="space-y-1">
-                                        <h4 className="font-semibold text-sm text-muted-foreground">Status</h4>
+                                     <div className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Service Type</span>
+                                        <Badge variant="outline" className="capitalize">{viewingService.serviceType}</Badge>
+                                    </div>
+                                     <div className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Status</span>
                                          <Badge variant={viewingService.status === 'published' ? 'default' : 'secondary'}>{viewingService.status}</Badge>
                                     </div>
                                 </div>
 
                                 {viewingService.tags && viewingService.tags.length > 0 && (
-                                    <div className="space-y-2">
-                                        <h4 className="font-semibold text-sm text-muted-foreground">Tags</h4>
-                                        <div className="flex flex-wrap gap-2">
-                                            {viewingService.tags.map(tag => <Badge key={tag} variant="outline">{tag}</Badge>)}
+                                    <>
+                                        <Separator />
+                                        <div className="space-y-2">
+                                            <h4 className="font-medium text-foreground">Tags</h4>
+                                            <div className="flex flex-wrap gap-2">
+                                                {viewingService.tags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
+                                            </div>
                                         </div>
-                                    </div>
+                                    </>
                                 )}
                                 
-                                <Separator />
-
-                                {viewingService.serviceType === 'guide' && viewingService.steps && (
-                                    <div className="space-y-2">
-                                        <h4 className="font-semibold text-sm text-muted-foreground">Steps</h4>
-                                        <ol className="list-decimal space-y-2 pl-5">
-                                            {viewingService.steps.map((step, i) => <li key={i}>{step}</li>)}
-                                        </ol>
-                                    </div>
+                                {viewingService.serviceType === 'guide' && viewingService.steps && viewingService.steps.length > 0 && (
+                                    <>
+                                        <Separator />
+                                        <div className="space-y-2">
+                                            <h4 className="font-medium text-foreground">Steps</h4>
+                                            <ol className="list-decimal space-y-2 pl-5 text-muted-foreground">
+                                                {viewingService.steps.map((step, i) => <li key={i}>{step}</li>)}
+                                            </ol>
+                                        </div>
+                                    </>
                                 )}
 
                                 {viewingService.serviceType === 'info' && (
-                                     <div className="space-y-3">
-                                        <h4 className="font-semibold text-sm text-muted-foreground">Contact Information</h4>
-                                        {viewingService.phone && <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-primary" /> {viewingService.phone}</p>}
-                                        {viewingService.email && <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /> {viewingService.email}</p>}
-                                        {viewingService.address && <p className="flex items-start gap-2"><MapPin className="h-4 w-4 text-primary mt-1" /> {viewingService.address}</p>}
-                                        {!viewingService.phone && !viewingService.email && !viewingService.address && <p className="text-sm text-muted-foreground">No contact information provided.</p>}
-                                    </div>
+                                     <>
+                                        <Separator />
+                                        <div className="space-y-3">
+                                            <h4 className="font-medium text-foreground">Contact Information</h4>
+                                            {viewingService.phone && <p className="flex items-center justify-between"><span className="text-muted-foreground">Phone</span> <span className="font-medium">{viewingService.phone}</span></p>}
+                                            {viewingService.email && <p className="flex items-center justify-between"><span className="text-muted-foreground">Email</span> <span className="font-medium">{viewingService.email}</span></p>}
+                                            {viewingService.address && <p className="flex items-start justify-between gap-4"><span className="text-muted-foreground">Address</span> <span className="font-medium text-right">{viewingService.address}</span></p>}
+                                            {!viewingService.phone && !viewingService.email && !viewingService.address && <p className="text-sm text-muted-foreground">No contact information provided.</p>}
+                                        </div>
+                                     </>
                                 )}
-
                             </div>
                         </ScrollArea>
                         <DialogFooter className="pt-4 border-t">
@@ -945,3 +947,5 @@ export default function ManageLinksPage() {
         </Suspense>
     )
 }
+
+    
