@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -52,6 +53,7 @@ import {
   LayoutGrid,
   List,
   Save,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   Select,
@@ -64,7 +66,7 @@ import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import {
   collection,
@@ -80,7 +82,7 @@ import {
 const formSchema = z.object({
   title: z.string().min(5),
   link: z.string().url(),
-  categorySlug: z.string(),
+  categorySlug: z.string({ required_error: 'Please select a category.' }),
   description: z.string().min(10),
   steps: z.string().min(10),
   country: z.string({ required_error: 'Please select a country.' }),
@@ -123,6 +125,7 @@ export default function ManageLinksPage() {
   useEffect(() => {
     const countryData = COUNTRIES.find((c) => c.code === selectedCountry);
     setStates(countryData ? countryData.states : []);
+    // Do not reset state field if we are editing an existing service
     if (!editingService) {
         form.setValue('state', undefined);
     }
@@ -187,7 +190,7 @@ export default function ManageLinksPage() {
     try {
         if (editingService) {
             // Update existing service
-            const serviceRef = doc(db, 'services', editingService.id);
+            const serviceRef = doc(db, 'services', editingService.id).withConverter(serviceConverter);
             await updateDoc(serviceRef, serviceData);
             toast({
                 title: 'Service Updated',
@@ -204,7 +207,7 @@ export default function ManageLinksPage() {
             });
             setIsAddDialogOpen(false);
         }
-        form.reset({ verified: false });
+        form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined });
         
     } catch (error) {
       console.error('Error saving service: ', error);
@@ -218,7 +221,7 @@ export default function ManageLinksPage() {
   };
 
   const handleDelete = async (id: string, title: string) => {
-    if (!window.confirm(`Are you sure you want to delete "${title}"?`)) return;
+    if (!window.confirm(`Are you sure you want to delete "${title}"? This cannot be undone.`)) return;
     try {
       await deleteDoc(doc(db, 'services', id));
       toast({
@@ -305,6 +308,7 @@ export default function ManageLinksPage() {
                             <TableHead>Title</TableHead>
                             <TableHead>Location</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead>Verified</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -319,7 +323,10 @@ export default function ManageLinksPage() {
                                 </div>
                                 </TableCell>
                                 <TableCell>
-                                <Badge variant={service.status === 'published' ? 'default' : 'destructive'}>{service.status}</Badge>
+                                <Badge variant={service.status === 'published' ? 'default' : 'secondary'}>{service.status}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                 {service.verified && <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200"><ShieldCheck className="h-3 w-3 mr-1"/>Yes</Badge>}
                                 </TableCell>
                                 <TableCell>
                                 <div className="flex gap-2 justify-end">
@@ -342,12 +349,18 @@ export default function ManageLinksPage() {
                         <Card key={service.id} className="flex flex-col">
                             <CardHeader>
                                 <CardTitle className="text-base font-semibold leading-tight">{service.title}</CardTitle>
-                                 <div className="flex items-center gap-2 pt-1">
-                                    <Badge variant={service.status === 'published' ? 'default' : 'destructive'}>{service.status}</Badge>
-                                    <Badge variant="secondary">{service.country}{service.state && ` - ${service.state}`}</Badge>
+                                 <div className="flex items-center gap-2 pt-1 flex-wrap">
+                                    <Badge variant={service.status === 'published' ? 'default' : 'secondary'}>{service.status}</Badge>
+                                    <Badge variant="outline">{service.country}{service.state && ` - ${service.state}`}</Badge>
+                                    {service.verified && (
+                                        <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+                                            <ShieldCheck className="h-3 w-3 mr-1" />
+                                            Verified
+                                        </Badge>
+                                    )}
                                  </div>
                             </CardHeader>
-                             <CardFooter className="flex gap-2 justify-end mt-auto">
+                             <CardFooter className="flex gap-2 justify-end mt-auto pt-4">
                                 <Button variant="outline" size="icon" onClick={() => openEditDialog(service)}><Edit className="h-4 w-4"/></Button>
                                 <Button variant="outline" size="icon" onClick={() => handleToggleStatus(service)}>{service.status === 'published' ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}</Button>
                                 <Button variant="destructive" size="icon" onClick={() => handleDelete(service.id, service.title)}><Trash2  className="h-4 w-4"/></Button>
@@ -419,7 +432,7 @@ export default function ManageLinksPage() {
     </Card>
   );
 
-  const ServiceFormFields = ({ isEditMode }: { isEditMode: boolean }) => (
+  const ServiceFormFields = () => (
     <div className="space-y-4 py-6 max-h-[70vh] overflow-y-auto pr-4">
         <div className="grid gap-3">
             <Label htmlFor="title">Service Title</Label>
@@ -488,11 +501,14 @@ export default function ManageLinksPage() {
         
         {/* ADD DIALOG */}
         <Dialog open={isAddDialogOpen} onOpenChange={(isOpen) => {
-            if (!isOpen) form.reset({ verified: false });
+            if (!isOpen) {
+                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined });
+                setEditingService(null);
+            }
             setIsAddDialogOpen(isOpen);
         }}>
             <DialogTrigger asChild>
-                <Button onClick={() => setEditingService(null)}>
+                <Button>
                     <PlusCircle className="mr-2" />
                     Add New Service
                 </Button>
@@ -505,7 +521,7 @@ export default function ManageLinksPage() {
                             Manually add a new service to the directory. This will be published immediately.
                         </DialogDescription>
                     </DialogHeader>
-                    <ServiceFormFields isEditMode={false} />
+                    <ServiceFormFields />
                     <DialogFooter>
                       <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                       <Button type="submit" disabled={isLoading}>
@@ -519,7 +535,10 @@ export default function ManageLinksPage() {
 
         {/* EDIT DIALOG */}
         <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => {
-            if (!isOpen) form.reset({ verified: false });
+            if (!isOpen) {
+                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined });
+                setEditingService(null);
+            }
             setIsEditDialogOpen(isOpen);
         }}>
              <DialogContent className="sm:max-w-2xl">
@@ -530,7 +549,7 @@ export default function ManageLinksPage() {
                             Update the details for &quot;{editingService?.title}&quot;.
                         </DialogDescription>
                     </DialogHeader>
-                    <ServiceFormFields isEditMode={true} />
+                    <ServiceFormFields />
                     <DialogFooter>
                       <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                       <Button type="submit" disabled={isLoading}>
@@ -549,3 +568,5 @@ export default function ManageLinksPage() {
     </div>
   );
 }
+
+    
