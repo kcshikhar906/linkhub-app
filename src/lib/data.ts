@@ -51,6 +51,7 @@ export type SubmittedLink = {
     country: string;
     state?: string;
     status: 'pending' | 'approved' | 'rejected';
+    submittedAt: Timestamp | ServerTimestamp;
 }
 
 export type ReportedLink = {
@@ -146,6 +147,7 @@ export const categoryConverter = {
 export const submissionConverter = {
     fromFirestore: (snapshot: QueryDocumentSnapshot): SubmittedLink => {
         const data = snapshot.data();
+        const submittedAt = data.submittedAt instanceof Timestamp ? data.submittedAt : new Timestamp(0,0);
         return {
             id: snapshot.id,
             title: data.title,
@@ -156,6 +158,7 @@ export const submissionConverter = {
             country: data.country,
             state: data.state,
             status: data.status || 'pending',
+            submittedAt: submittedAt,
         };
     },
     toFirestore: (submission: Partial<Omit<SubmittedLink, 'id'>>): DocumentData => {

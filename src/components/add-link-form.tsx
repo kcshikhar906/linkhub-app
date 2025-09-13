@@ -34,7 +34,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { getIcon, type Category } from '@/lib/data';
 import { Textarea } from '@/components/ui/textarea';
-import { collection, addDoc, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { submissionConverter, categoryConverter } from '@/lib/data';
 import { COUNTRIES, type State } from '@/lib/countries';
@@ -91,7 +91,8 @@ export function AddLinkForm() {
     try {
         const submissionData = {
             ...data,
-            status: 'pending' as const
+            status: 'pending' as const,
+            submittedAt: serverTimestamp(),
         }
         const submissionsCol = collection(db, 'submissions').withConverter(submissionConverter);
         await addDoc(submissionsCol, submissionData);

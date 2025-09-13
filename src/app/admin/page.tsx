@@ -9,6 +9,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter
 } from '@/components/ui/card';
 import {
   Table,
@@ -45,7 +46,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, Check, Trash2, Loader2, PlusCircle, ArrowUpRight, Link as LinkIcon, Layers, FileClock, AlertCircle, Edit, Save } from 'lucide-react';
+import { ExternalLink, Check, Trash2, Loader2, PlusCircle, ArrowUpRight, Link as LinkIcon, Layers, FileClock, AlertCircle, Edit, Save, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
@@ -164,12 +165,10 @@ function AdminPage() {
 
     fetchStats();
 
-    // Fetch all submissions ordered by title
-    const submissionsQuery = query(collection(db, 'submissions'), orderBy('title'));
+    const submissionsQuery = query(collection(db, 'submissions'), orderBy('submittedAt', 'desc'));
     const submissionsUnsubscribe = onSnapshot(submissionsQuery.withConverter(
       submissionConverter
     ), (snapshot) => {
-      // Filter for 'pending' status on the client side
       const pendingSubmissions = snapshot.docs
         .map((doc) => doc.data())
         .filter(sub => sub.status === 'pending');
@@ -424,60 +423,38 @@ function AdminPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loadingSubmissions ? <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground"/></div> :
-            <Accordion type="multiple" className="w-full">
-               {submissions.map((link) => (
-                <AccordionItem value={link.id} key={link.id}>
-                    <AccordionTrigger>
-                        <div className="flex items-center gap-4 flex-1 text-left">
-                            <span className="font-medium">{link.title}</span>
-                            <Badge variant="secondary">{link.categorySlug}</Badge>
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <div className="space-y-4 px-2">
-                            <div className="text-sm">
-                                <span className="font-semibold text-muted-foreground">URL: </span>
-                                <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{link.url} <ExternalLink className="inline h-4 w-4" /></a>
-                            </div>
-                             <div className="text-sm">
-                                <span className="font-semibold text-muted-foreground">Location: </span>
-                                <span>{link.country}{link.state && `, ${link.state}`}</span>
-                            </div>
-                            <div className="text-sm">
-                                <span className="font-semibold text-muted-foreground">Submitted by: </span>
-                                <span>{link.email}</span>
-                            </div>
-                             {link.notes && (
-                                <div className="text-sm pt-2 border-t">
-                                    <p className="font-semibold text-muted-foreground mb-1">Additional Notes:</p>
-                                    <p className="p-3 bg-muted rounded-md whitespace-pre-wrap">{link.notes}</p>
+          {loadingSubmissions ? (
+            <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground"/></div>
+          ) : (
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {submissions.map((link) => {
+                    const category = categories.find(c => c.slug === link.categorySlug);
+                    return (
+                        <Card key={link.id} className="flex flex-col cursor-pointer hover:border-primary hover:shadow-lg transition-all" onClick={() => openReviewDialog(link)}>
+                            <CardHeader>
+                                <CardTitle className="text-base font-semibold leading-tight">{link.title}</CardTitle>
+                                <div className="flex items-center gap-2 pt-1 flex-wrap">
+                                    <Badge variant="secondary">{category?.name || link.categorySlug}</Badge>
+                                    <Badge variant="outline">{link.country}{link.state && ` - ${link.state}`}</Badge>
                                 </div>
-                             )}
-                             <div className="flex gap-2 justify-end pt-4">
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => openReviewDialog(link)}
-                                >
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Review & Approve
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => handleReject(link.id, link.title)}
-                                >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Reject
-                                </Button>
-                            </div>
-                        </div>
-                    </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          }
+                            </CardHeader>
+                            <CardContent className="flex-grow">
+                                <a href={link.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-sm text-primary hover:underline break-all">
+                                    {link.url} <ExternalLink className="inline h-3 w-3" />
+                                </a>
+                            </CardContent>
+                            <CardFooter className="text-xs text-muted-foreground flex items-center justify-between">
+                                <div className="flex items-center gap-1.5">
+                                    <Clock className="h-3 w-3" />
+                                    {formatDistanceToNow(link.submittedAt.toDate(), { addSuffix: true })}
+                                </div>
+                                <Badge variant="default" className="bg-amber-500 hover:bg-amber-600">New</Badge>
+                            </CardFooter>
+                        </Card>
+                    );
+                })}
+             </div>
+          )}
         </CardContent>
       </Card>
       
@@ -563,12 +540,23 @@ function AdminPage() {
                       </DialogDescription>
                   </DialogHeader>
                   <ServiceFormFields />
-                  <DialogFooter>
-                    <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                    <Button type="submit" disabled={isLoading}>
-                        {isLoading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />}
-                        {isLoading ? 'Publishing...' : 'Approve & Publish'}
+                  <DialogFooter className="gap-2 sm:gap-0">
+                    <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={() => reviewingSubmission && handleReject(reviewingSubmission.id, reviewingSubmission.title)}
+                        disabled={isLoading}
+                    >
+                        <Trash2 className="mr-2" />
+                        Reject
                     </Button>
+                    <div className="flex gap-2">
+                        <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                        <Button type="submit" disabled={isLoading}>
+                            {isLoading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />}
+                            {isLoading ? 'Publishing...' : 'Approve & Publish'}
+                        </Button>
+                    </div>
                   </DialogFooter>
               </form>
           </DialogContent>
