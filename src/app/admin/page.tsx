@@ -39,7 +39,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, Check, Trash2, Loader2, PlusCircle, Link as LinkIcon, Layers, FileClock, AlertCircle, Save, Clock, Pencil, Edit, BookText, Info, ChevronsUpDown, FileText, Map, Phone, Mail, MapPin } from 'lucide-react';
+import { ExternalLink, Check, Trash2, Loader2, PlusCircle, Link as LinkIcon, Layers, FileClock, AlertCircle, Save, Clock, Pencil, Edit, BookText, Info, ChevronsUpDown, FileText, Map, Phone, Mail, MapPin, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
@@ -75,6 +75,8 @@ import { COUNTRIES, type State } from '@/lib/countries';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
 import { CATEGORY_TAGS } from '@/lib/category-tags';
+import { summarizeLinkCard } from '@/ai/flows/summarize-link-card';
+import { Skeleton } from '../ui/skeleton';
 
 
 type GroupedReports = {
@@ -124,6 +126,7 @@ function AdminPage() {
   // State for dialogs
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
   const [reviewingSubmission, setReviewingSubmission] = useState<SubmittedLink | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const [isReportsDialogOpen, setIsReportsDialogOpen] = useState(false);
   const [viewingReports, setViewingReports] = useState<{serviceTitle: string; serviceId: string; reports: ReportedLink[] } | null>(null);
 
@@ -239,22 +242,46 @@ function AdminPage() {
     }
   }, [user, toast]);
   
-  const openReviewDialog = (submission: SubmittedLink) => {
+  const openReviewDialog = async (submission: SubmittedLink) => {
     setReviewingSubmission(submission);
+    setIsReviewDialogOpen(true);
+    setIsAiLoading(true);
+
     form.reset({
+        // Pre-fill with submission data as a fallback
         title: submission.title,
         link: submission.url,
         categorySlug: submission.categorySlug,
         country: submission.country,
         state: submission.state,
-        // Default values for fields not in submission
-        description: submission.notes || '', 
-        steps: '',
-        verified: false,
-        serviceType: undefined, // Force user to select
-        tags: [],
+        description: submission.notes || '',
     });
-    setIsReviewDialogOpen(true);
+    
+    try {
+        const aiSummary = await summarizeLinkCard({ url: submission.url, categorySlug: submission.categorySlug });
+        form.reset({
+            title: aiSummary.title,
+            link: submission.url,
+            categorySlug: submission.categorySlug,
+            country: submission.country,
+            state: submission.state,
+            description: aiSummary.description,
+            steps: aiSummary.steps.join('\n'),
+            tags: aiSummary.suggestedTags || [],
+            serviceType: aiSummary.steps.length > 0 ? 'guide' : 'info',
+            verified: false,
+        });
+
+    } catch (error) {
+        console.error("AI summarization failed:", error);
+        toast({
+            variant: "destructive",
+            title: "AI Analysis Failed",
+            description: "Could not analyze the URL. Please fill the form manually."
+        })
+    } finally {
+        setIsAiLoading(false);
+    }
   }
 
   const openReportsDialog = (reportGroup: {serviceTitle: string; serviceId: string; reports: ReportedLink[] }) => {
@@ -494,6 +521,31 @@ function AdminPage() {
     </div>
   );
 
+   const AISkeletonLoader = () => (
+    <div className="space-y-6 py-6">
+        <div className="space-y-2">
+            <Skeleton className="h-4 w-1/4" />
+            <Skeleton className="h-10 w-full" />
+        </div>
+         <div className="space-y-2">
+            <Skeleton className="h-4 w-1/4" />
+            <Skeleton className="h-10 w-full" />
+        </div>
+        <div className="space-y-2">
+            <Skeleton className="h-4 w-1/4" />
+            <Skeleton className="h-20 w-full" />
+        </div>
+        <div className="space-y-2">
+            <Skeleton className="h-4 w-1/4" />
+            <Skeleton className="h-10 w-1/2" />
+        </div>
+        <div className="space-y-2">
+            <Skeleton className="h-4 w-1/4" />
+            <Skeleton className="h-10 w-full" />
+        </div>
+    </div>
+  );
+
 
   return (
     <div className="grid gap-8">
@@ -650,23 +702,27 @@ function AdminPage() {
                   <DialogHeader>
                       <DialogTitle>Review & Approve Submission</DialogTitle>
                       <DialogDescription>
-                          Edit and finalize the details for &quot;{reviewingSubmission?.title}&quot; before publishing. User notes are pre-filled in the description.
+                         {isAiLoading
+                            ? 'AI is analyzing the link...'
+                            : `Review the AI-powered suggestions for "${reviewingSubmission?.title}" before publishing.`}
                       </DialogDescription>
                   </DialogHeader>
-                  <ServiceFormFields />
-                  <DialogFooter className="gap-2 sm:gap-0 sm:justify-between">
+                  
+                  {isAiLoading ? <AISkeletonLoader /> : <ServiceFormFields />}
+                  
+                  <DialogFooter className="gap-2 sm:gap-0 sm:justify-between pt-4">
                     <Button
                         type="button"
                         variant="destructive"
                         onClick={(e) => handleReject(e)}
-                        disabled={isLoading}
+                        disabled={isLoading || isAiLoading}
                     >
                         <Trash2 className="mr-2" />
                         Reject
                     </Button>
                     <div className="flex gap-2">
                         <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                        <Button type="submit" disabled={isLoading}>
+                        <Button type="submit" disabled={isLoading || isAiLoading}>
                             {isLoading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />}
                             {isLoading ? 'Publishing...' : 'Approve & Publish'}
                         </Button>
@@ -792,3 +848,5 @@ function MultiSelect({ options, selected, onChange, className, placeholder = "Se
 }
 
 export default AdminPage;
+
+    
