@@ -66,7 +66,7 @@ import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, Suspense } from 'react';
 import { db } from '@/lib/firebase';
 import {
   collection,
@@ -77,7 +77,9 @@ import {
   query,
   orderBy,
   updateDoc,
+  getDoc,
 } from 'firebase/firestore';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 const formSchema = z.object({
   title: z.string().min(5),
@@ -92,7 +94,11 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export default function ManageLinksPage() {
+function ManageLinksPageComponent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const editServiceId = searchParams.get('edit');
+
   const { toast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -130,6 +136,46 @@ export default function ManageLinksPage() {
         form.setValue('state', undefined);
     }
   }, [selectedCountry, form, editingService]);
+
+  const openEditDialog = async (serviceOrId: Service | string) => {
+    let service: Service | null = null;
+    if (typeof serviceOrId === 'string') {
+        try {
+            const serviceRef = doc(db, 'services', serviceOrId).withConverter(serviceConverter);
+            const serviceSnap = await getDoc(serviceRef);
+            if (serviceSnap.exists()) {
+                service = serviceSnap.data();
+            } else {
+                 toast({ variant: 'destructive', title: 'Error', description: 'Service not found.' });
+                 return;
+            }
+        } catch (error) {
+             toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch service.' });
+             return;
+        }
+    } else {
+        service = serviceOrId;
+    }
+    
+    if (service) {
+        setEditingService(service);
+        form.reset({
+            ...service,
+            steps: service.steps.join('\n'),
+        });
+        setIsEditDialogOpen(true);
+    }
+  }
+
+  useEffect(() => {
+    if (editServiceId) {
+      openEditDialog(editServiceId);
+      // Optional: remove the query param from URL after opening
+      router.replace('/admin/manage-links');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editServiceId, services]); // Depend on services to ensure data is loaded
+
 
   useEffect(() => {
     const fetchCategories = onSnapshot(
@@ -259,15 +305,6 @@ export default function ManageLinksPage() {
     }
   };
 
-  const openEditDialog = (service: Service) => {
-    setEditingService(service);
-    form.reset({
-        ...service,
-        steps: service.steps.join('\n'),
-    });
-    setIsEditDialogOpen(true);
-  }
-  
   const handleCategoryClick = (category: Category) => {
       setSelectedCategory(category);
       setCurrentView('links');
@@ -276,6 +313,10 @@ export default function ManageLinksPage() {
   const handleBackToCategories = () => {
       setSelectedCategory(null);
       setCurrentView('categories');
+  }
+  
+  const handleBackToDashboard = () => {
+    router.push('/admin');
   }
 
   const renderLinksView = () => {
@@ -497,7 +538,13 @@ export default function ManageLinksPage() {
   return (
     <div className="grid flex-1 items-start gap-4 md:gap-8">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Manage Links</h1>
+        <div className="flex items-center gap-4">
+             <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleBackToDashboard}>
+                  <ArrowLeft className="h-4 w-4" />
+                  <span className="sr-only">Back to Dashboard</span>
+              </Button>
+            <h1 className="text-2xl font-bold">Manage Links</h1>
+        </div>
         
         {/* ADD DIALOG */}
         <Dialog open={isAddDialogOpen} onOpenChange={(isOpen) => {
@@ -569,4 +616,11 @@ export default function ManageLinksPage() {
   );
 }
 
-    
+
+export default function ManageLinksPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <ManageLinksPageComponent />
+        </Suspense>
+    )
+}

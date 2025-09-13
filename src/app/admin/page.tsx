@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useAuth } from '@/context/auth-context';
@@ -40,7 +41,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, Check, Trash2, Loader2, PlusCircle, Link as LinkIcon, Layers, FileClock, AlertCircle, Save, Clock, Pencil } from 'lucide-react';
+import { ExternalLink, Check, Trash2, Loader2, PlusCircle, Link as LinkIcon, Layers, FileClock, AlertCircle, Save, Clock, Pencil, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
@@ -65,6 +66,7 @@ import { COUNTRIES, type State } from '@/lib/countries';
 type GroupedReports = {
   [key: string]: {
     serviceTitle: string;
+    serviceId: string;
     reports: ReportedLink[];
   };
 }
@@ -96,7 +98,7 @@ function AdminPage() {
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
   const [reviewingSubmission, setReviewingSubmission] = useState<SubmittedLink | null>(null);
   const [isReportsDialogOpen, setIsReportsDialogOpen] = useState(false);
-  const [viewingReports, setViewingReports] = useState<{serviceTitle: string; reports: ReportedLink[] } | null>(null);
+  const [viewingReports, setViewingReports] = useState<{serviceTitle: string; serviceId: string; reports: ReportedLink[] } | null>(null);
 
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -184,7 +186,7 @@ function AdminPage() {
           if (report.status === 'pending') {
             const { serviceId, serviceTitle } = report;
             if (!acc[serviceId]) {
-              acc[serviceId] = { serviceTitle, reports: [] };
+              acc[serviceId] = { serviceTitle, serviceId, reports: [] };
             }
             acc[serviceId].reports.push(report);
           }
@@ -218,7 +220,7 @@ function AdminPage() {
     setIsReviewDialogOpen(true);
   }
 
-  const openReportsDialog = (reportGroup: {serviceTitle: string; reports: ReportedLink[] }) => {
+  const openReportsDialog = (reportGroup: {serviceTitle: string; serviceId: string; reports: ReportedLink[] }) => {
     setViewingReports(reportGroup);
     setIsReportsDialogOpen(true);
   }
@@ -231,6 +233,7 @@ function AdminPage() {
         ...data,
         steps: data.steps.split('\n').filter(Boolean),
         status: 'published' as const,
+        verified: data.verified || false,
     };
 
     try {
@@ -445,11 +448,16 @@ function AdminPage() {
                                 <a href={link.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-sm text-primary hover:underline break-all">
                                     {link.url} <ExternalLink className="inline h-3 w-3" />
                                 </a>
+                                {link.notes && (
+                                  <p className="text-sm text-muted-foreground mt-2 italic">
+                                    &quot;{link.notes}&quot;
+                                  </p>
+                                )}
                             </CardContent>
                             <CardFooter className="text-xs text-muted-foreground flex items-center justify-between">
                                 <div className="flex items-center gap-1.5">
                                     <Clock className="h-3 w-3" />
-                                    {formatDistanceToNow(link.submittedAt.toDate(), { addSuffix: true })}
+                                    {link.submittedAt ? formatDistanceToNow(link.submittedAt.toDate(), { addSuffix: true }) : 'Just now'}
                                 </div>
                                 <Badge variant="default" className="bg-amber-500 hover:bg-amber-600">New</Badge>
                             </CardFooter>
@@ -570,7 +578,13 @@ function AdminPage() {
                 </TableBody>
               </Table>
           </div>
-          <DialogFooter>
+          <DialogFooter className="justify-between">
+            <Button asChild variant="secondary">
+                <Link href={`/admin/manage-links?edit=${viewingReports?.serviceId}`} target="_blank">
+                    <Edit className="mr-2 h-4 w-4" />
+                    Manage Service
+                </Link>
+            </Button>
             <DialogClose asChild><Button>Close</Button></DialogClose>
           </DialogFooter>
         </DialogContent>
@@ -581,5 +595,3 @@ function AdminPage() {
 }
 
 export default AdminPage;
-
-    
