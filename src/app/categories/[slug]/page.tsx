@@ -64,6 +64,9 @@ function CategoryPageClient({ slug }: CategoryPageClientProps) {
       // If we don't have a state param, we want services for the whole country (where state is not defined).
       if (state) {
         fetchedServices = fetchedServices.filter(service => service.state === state);
+      } else {
+        // If no state is specified, only show country-wide services (those without a state)
+        fetchedServices = fetchedServices.filter(service => !service.state);
       }
       
       setServices(fetchedServices);
