@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -101,6 +99,7 @@ const formSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
   address: z.string().optional(),
+  tags: z.string().optional(),
 }).refine(data => {
     if (data.serviceType === 'guide') {
         return !!data.steps && data.steps.length > 10;
@@ -182,6 +181,7 @@ function ManageLinksPageComponent() {
         form.reset({
             ...service,
             steps: service.steps?.join('\n') || '',
+            tags: service.tags?.join(', ') || '',
         });
         setIsEditDialogOpen(true);
     }
@@ -248,6 +248,7 @@ function ManageLinksPageComponent() {
     setIsLoading(true);
     const serviceData = {
       ...data,
+      tags: data.tags?.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) || [],
       steps: data.serviceType === 'guide' ? data.steps?.split('\n').filter((step) => step.trim() !== '') : null,
       phone: data.serviceType === 'info' ? data.phone : null,
       email: data.serviceType === 'info' ? data.email : null,
@@ -276,7 +277,7 @@ function ManageLinksPageComponent() {
             });
             setIsAddDialogOpen(false);
         }
-        form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: undefined });
+        form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: undefined, tags: '' });
         
     } catch (error) {
       console.error('Error saving service: ', error);
@@ -552,6 +553,12 @@ function ManageLinksPageComponent() {
         </div>
 
         <div className="grid gap-3">
+            <Label htmlFor="tags">Tags</Label>
+            <Input id="tags" type="text" placeholder="e.g. consultancy, college, ielts" {...form.register('tags')} />
+            <p className="text-xs text-muted-foreground">Separate tags with a comma. These are used for filtering within a category.</p>
+        </div>
+
+        <div className="grid gap-3">
             <Label>Service Type</Label>
              <ToggleGroup
                 type="single"
@@ -632,7 +639,7 @@ function ManageLinksPageComponent() {
         {/* ADD DIALOG */}
         <Dialog open={isAddDialogOpen} onOpenChange={(isOpen) => {
             if (!isOpen) {
-                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: undefined });
+                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: undefined, tags: '' });
                 setEditingService(null);
             }
             setIsAddDialogOpen(isOpen);
@@ -666,7 +673,7 @@ function ManageLinksPageComponent() {
         {/* EDIT DIALOG */}
         <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => {
             if (!isOpen) {
-                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: undefined });
+                form.reset({ verified: false, title: '', link: '', description: '', steps: '', categorySlug: undefined, country: undefined, state: undefined, serviceType: undefined, tags: '' });
                 setEditingService(null);
             }
             setIsEditDialogOpen(isOpen);

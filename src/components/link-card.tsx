@@ -84,6 +84,13 @@ export function LinkCard({ service }: LinkCardProps) {
              </div>
           </div>
           <CardDescription>{service.description}</CardDescription>
+            {service.tags && service.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                    {service.tags.map(tag => (
+                        <Badge key={tag} variant="outline">{tag}</Badge>
+                    ))}
+                </div>
+            )}
         </CardHeader>
         <CardContent className="flex-grow">
           {service.serviceType === 'guide' && service.steps && service.steps.length > 0 && (

@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useAuth } from '@/context/auth-context';
@@ -85,6 +83,7 @@ const serviceFormSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
   address: z.string().optional(),
+  tags: z.string().optional(),
 }).refine(data => {
     if (data.serviceType === 'guide') {
         return !!data.steps && data.steps.length > 10;
@@ -231,6 +230,7 @@ function AdminPage() {
         steps: '',
         verified: false,
         serviceType: undefined, // Force user to select
+        tags: '',
     });
     setIsReviewDialogOpen(true);
   }
@@ -246,6 +246,7 @@ function AdminPage() {
 
     const serviceData = {
         ...data,
+        tags: data.tags?.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) || [],
         steps: data.serviceType === 'guide' ? data.steps?.split('\n').filter((step) => step.trim() !== '') : null,
         phone: data.serviceType === 'info' ? data.phone : null,
         email: data.serviceType === 'info' ? data.email : null,
@@ -361,6 +362,13 @@ function AdminPage() {
             <Textarea id="description" placeholder="A brief explanation of the service." {...form.register('description')} />
             {form.formState.errors.description && <p className="text-sm text-destructive">{form.formState.errors.description.message}</p>}
         </div>
+        
+        <div className="grid gap-3">
+            <Label htmlFor="tags">Tags</Label>
+            <Input id="tags" type="text" placeholder="e.g. consultancy, college, ielts" {...form.register('tags')} />
+            <p className="text-xs text-muted-foreground">Separate tags with a comma. These are used for filtering within a category.</p>
+        </div>
+
          <div className="grid gap-3">
             <Label>Service Type</Label>
              <ToggleGroup

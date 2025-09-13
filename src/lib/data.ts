@@ -37,6 +37,7 @@ export type Service = {
   phone?: string;
   email?: string;
   address?: string;
+  tags?: string[];
 };
 
 export type Category = {
@@ -118,6 +119,7 @@ export const serviceConverter = {
             phone: data.phone,
             email: data.email,
             address: data.address,
+            tags: data.tags || [],
         };
     },
     toFirestore: (service: Partial<Service>): DocumentData => {
