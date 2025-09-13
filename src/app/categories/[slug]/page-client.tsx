@@ -20,12 +20,13 @@ export function CategoryPageClient({ category, services: initialServices }: Cate
     const searchParams = useSearchParams();
     const country = searchParams.get('country') || 'AU';
     const state = searchParams.get('state');
+    const tag = searchParams.get('tag');
 
     // Dialog state
     const [selectedService, setSelectedService] = useState<Service | null>(null);
 
     // Filtering state
-    const [selectedTag, setSelectedTag] = useState<string>('ALL');
+    const [selectedTag, setSelectedTag] = useState<string>(tag || 'ALL');
     const [searchTerm, setSearchTerm] = useState('');
 
     const availableTags = useMemo(() => CATEGORY_TAGS[category.slug] || [], [category.slug]);

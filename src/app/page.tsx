@@ -5,9 +5,42 @@ import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, getCountFromServer } from 'firebase/firestore';
 import { type Category, categoryConverter, type Service, serviceConverter } from '@/lib/data';
 import { COUNTRIES } from '@/lib/countries';
+import { Badge } from '@/components/ui/badge';
+import { ArrowRight } from 'lucide-react';
+
+const popularSearches = [
+    {
+        text: 'Student Visas in New South Wales',
+        categorySlug: 'visas-and-immigration',
+        tag: 'Student Visa',
+        country: 'AU',
+        state: 'NSW',
+    },
+    {
+        text: 'Educational Consultancies in Bagmati',
+        categorySlug: 'education-and-training',
+        tag: 'Educational Consultancy',
+        country: 'NP',
+        state: 'BAGMATI',
+    },
+    {
+        text: 'Driving Licenses in Victoria',
+        categorySlug: 'driving-and-transport',
+        tag: 'License Application',
+        country: 'AU',
+        state: 'VIC',
+    },
+    {
+        text: 'Community Organizations in Nepal',
+        categorySlug: 'nepal-specific',
+        tag: 'Community Organizations',
+        country: 'NP',
+        state: undefined,
+    }
+];
 
 
 async function getServicesForLocation(country: string, state?: string) {
@@ -30,6 +63,28 @@ async function getAllCategories() {
     return categoriesSnapshot.docs.map(doc => doc.data());
 }
 
+async function getPopularSearchCounts() {
+    const counts = await Promise.all(popularSearches.map(async (search) => {
+        const conditions = [
+            where('categorySlug', '==', search.categorySlug),
+            where('country', '==', search.country),
+            where('tags', 'array-contains', search.tag),
+            where('status', '==', 'published')
+        ];
+        if (search.state) {
+            conditions.push(where('state', '==', search.state));
+        }
+
+        const q = query(collection(db, 'services'), ...conditions);
+        const snapshot = await getCountFromServer(q);
+        return {
+            ...search,
+            count: snapshot.data().count
+        };
+    }));
+    return counts.filter(c => c.count > 0);
+}
+
 
 export default async function Home({ searchParams }: { searchParams: { country?: string; state?: string } }) {
   // Default to Australia if no country is provided
@@ -38,6 +93,7 @@ export default async function Home({ searchParams }: { searchParams: { country?:
 
   const allCategories = await getAllCategories();
   const locationServices = await getServicesForLocation(countryCode, stateCode);
+  const popularSearchesWithCounts = await getPopularSearchCounts();
   
   // Get the slugs of categories that have services in the selected location
   const availableCategorySlugs = new Set(locationServices.map(service => service.categorySlug));
@@ -88,6 +144,37 @@ export default async function Home({ searchParams }: { searchParams: { country?:
                 </div>
             )}
         </section>
+        
+        {popularSearchesWithCounts.length > 0 && (
+        <section>
+             <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
+                  Popular Searches
+                </h2>
+             </div>
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {popularSearchesWithCounts.map(search => (
+                    <Link
+                        key={search.text}
+                        href={{
+                            pathname: `/categories/${search.categorySlug}`,
+                            query: { country: search.country, state: search.state, tag: search.tag }
+                        }}
+                        className="group block"
+                    >
+                        <div className="border rounded-lg p-4 h-full flex justify-between items-center transition-all hover:border-primary hover:shadow-md">
+                            <div>
+                                <p className="font-semibold text-card-foreground">{search.text}</p>
+                                <p className="text-sm text-muted-foreground">{search.count} service{search.count !== 1 && 's'}</p>
+                            </div>
+                            <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                        </div>
+                    </Link>
+                ))}
+             </div>
+        </section>
+        )}
+
       </div>
     </main>
     <Footer />
