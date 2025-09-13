@@ -1,3 +1,4 @@
+
 import { CategoryCard } from '@/components/category-card';
 import { SearchBar } from '@/components/search-bar';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowRight } from 'lucide-react';
 import { TypingEffect } from '@/components/typing-effect';
 import { WelcomeGuide } from '@/components/welcome-guide';
+import { MotionLink } from '@/components/motion-link';
 
 const popularSearches = [
     {
@@ -153,8 +155,8 @@ export default async function Home({ searchParams }: { searchParams: { country?:
           </div>
         
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {categories.map((category) => (
-              <CategoryCard key={category.slug} category={category} />
+            {categories.map((category, index) => (
+              <CategoryCard key={category.slug} category={category} index={index} />
             ))}
           </div>
             {categories.length === 0 && (
@@ -174,14 +176,18 @@ export default async function Home({ searchParams }: { searchParams: { country?:
                 </h2>
              </div>
              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {popularSearchesWithCounts.map(search => (
-                    <Link
+                {popularSearchesWithCounts.map((search, index) => (
+                    <MotionLink
                         key={search.text}
                         href={{
                             pathname: `/categories/${search.categorySlug}`,
                             query: { country: search.country, state: search.state, tag: search.tag }
                         }}
                         className="group block"
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, amount: 0.5 }}
+                        transition={{ delay: index * 0.1, duration: 0.3, ease: 'easeOut' }}
                     >
                         <div className="border rounded-lg p-4 h-full flex justify-between items-center transition-all hover:border-primary hover:shadow-md">
                             <div>
@@ -190,7 +196,7 @@ export default async function Home({ searchParams }: { searchParams: { country?:
                             </div>
                             <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                         </div>
-                    </Link>
+                    </MotionLink>
                 ))}
              </div>
         </section>

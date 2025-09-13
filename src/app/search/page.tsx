@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useSearchParams } from 'next/navigation';
@@ -84,8 +85,8 @@ function SearchResults() {
               </h1>
               {filteredServices.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredServices.map((service) => (
-                    <ServiceCard key={service.id} service={service} onClick={() => setSelectedService(service)} />
+                  {filteredServices.map((service, index) => (
+                    <ServiceCard key={service.id} service={service} onClick={() => setSelectedService(service)} index={index} />
                   ))}
                 </div>
               ) : (
@@ -99,8 +100,8 @@ function SearchResults() {
             </>
           ) : (
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {services.map((service) => (
-                   <ServiceCard key={service.id} service={service} onClick={() => setSelectedService(service)} />
+                {services.map((service, index) => (
+                   <ServiceCard key={service.id} service={service} onClick={() => setSelectedService(service)} index={index} />
                 ))}
             </div>
           )}
