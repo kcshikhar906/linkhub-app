@@ -1,6 +1,6 @@
 'use client';
 
-import { Copy, Share2, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Copy, Share2, AlertTriangle, ExternalLink, ShieldCheck } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -22,6 +22,7 @@ import { COUNTRIES } from '@/lib/countries';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { ReportDialog } from './report-dialog';
+import { cn } from '@/lib/utils';
 
 interface LinkCardProps {
   service: Service;
@@ -70,9 +71,17 @@ export function LinkCard({ service }: LinkCardProps) {
       />
       <Card className="flex flex-col">
         <CardHeader>
-          <div className="flex justify-between items-start">
-             <CardTitle className="font-headline text-xl flex-1 pr-4">{service.title}</CardTitle>
-             {location && <Badge variant="secondary">{location}</Badge>}
+          <div className="flex justify-between items-start gap-4">
+             <CardTitle className="font-headline text-xl flex-1">{service.title}</CardTitle>
+             <div className="flex flex-col items-end gap-2 shrink-0">
+                {service.verified && (
+                    <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+                        <ShieldCheck className="h-4 w-4 mr-1" />
+                        Verified
+                    </Badge>
+                )}
+                {location && <Badge variant="secondary">{location}</Badge>}
+             </div>
           </div>
           <CardDescription>{service.description}</CardDescription>
         </CardHeader>

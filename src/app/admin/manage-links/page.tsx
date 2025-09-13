@@ -30,6 +30,8 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import {
   type Category,
   type Service,
@@ -49,6 +51,7 @@ import {
   ArrowLeft,
   LayoutGrid,
   List,
+  Save,
 } from 'lucide-react';
 import {
   Select,
@@ -61,7 +64,7 @@ import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { db } from '@/lib/firebase';
 import {
   collection,
@@ -73,7 +76,6 @@ import {
   orderBy,
   updateDoc,
 } from 'firebase/firestore';
-import Link from 'next/link';
 
 const formSchema = z.object({
   title: z.string().min(5),
@@ -83,6 +85,7 @@ const formSchema = z.object({
   steps: z.string().min(10),
   country: z.string({ required_error: 'Please select a country.' }),
   state: z.string().optional(),
+  verified: z.boolean().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -94,18 +97,25 @@ export default function ManageLinksPage() {
   const [states, setStates] = useState<State[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isServicesLoading, setIsServicesLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
+  // Dialog states
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingService, setEditingService] = useState<Service | null>(null);
 
   // View management state
   const [currentView, setCurrentView] = useState<'categories' | 'links'>('categories');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [linksDisplayMode, setLinksDisplayMode] = useState<'list' | 'grid'>('grid');
+  const [linksDisplayMode, setLinksDisplayMode] = useState<'grid' | 'list'>('grid');
 
   // Filters for the list
   const [countryFilter, setCountryFilter] = useState<string>('all');
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      verified: false,
+    }
   });
 
   const selectedCountry = form.watch('country');
@@ -113,8 +123,10 @@ export default function ManageLinksPage() {
   useEffect(() => {
     const countryData = COUNTRIES.find((c) => c.code === selectedCountry);
     setStates(countryData ? countryData.states : []);
-    form.setValue('state', undefined);
-  }, [selectedCountry, form]);
+    if (!editingService) {
+        form.setValue('state', undefined);
+    }
+  }, [selectedCountry, form, editingService]);
 
   useEffect(() => {
     const fetchCategories = onSnapshot(
@@ -163,29 +175,43 @@ export default function ManageLinksPage() {
     return counts;
   }, [services, countryFilter]);
 
-  const onSubmit: SubmitHandler<FormValues> = async (data) => {
+  const handleFormSubmit: SubmitHandler<FormValues> = async (data) => {
     setIsLoading(true);
+    const serviceData = {
+      ...data,
+      steps: data.steps.split('\n').filter((step) => step.trim() !== ''),
+      status: 'published' as const,
+      verified: data.verified || false,
+    };
+    
     try {
-      const serviceData = {
-        ...data,
-        steps: data.steps.split('\n').filter((step) => step.trim() !== ''),
-        status: 'published' as const,
-      };
-      const servicesCol =
-        collection(db, 'services').withConverter(serviceConverter);
-      await addDoc(servicesCol, serviceData);
-      toast({
-        title: 'Service Added',
-        description: 'The new service has been published.',
-      });
-      form.reset();
-      setIsDialogOpen(false);
+        if (editingService) {
+            // Update existing service
+            const serviceRef = doc(db, 'services', editingService.id);
+            await updateDoc(serviceRef, serviceData);
+            toast({
+                title: 'Service Updated',
+                description: 'The service has been successfully updated.',
+            });
+            setIsEditDialogOpen(false);
+        } else {
+            // Add new service
+            const servicesCol = collection(db, 'services').withConverter(serviceConverter);
+            await addDoc(servicesCol, serviceData);
+            toast({
+                title: 'Service Added',
+                description: 'The new service has been published.',
+            });
+            setIsAddDialogOpen(false);
+        }
+        form.reset({ verified: false });
+        
     } catch (error) {
-      console.error('Error adding service: ', error);
+      console.error('Error saving service: ', error);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to add service.',
+        description: 'Failed to save service.',
       });
     }
     setIsLoading(false);
@@ -229,6 +255,15 @@ export default function ManageLinksPage() {
       });
     }
   };
+
+  const openEditDialog = (service: Service) => {
+    setEditingService(service);
+    form.reset({
+        ...service,
+        steps: service.steps.join('\n'),
+    });
+    setIsEditDialogOpen(true);
+  }
   
   const handleCategoryClick = (category: Category) => {
       setSelectedCategory(category);
@@ -288,7 +323,7 @@ export default function ManageLinksPage() {
                                 </TableCell>
                                 <TableCell>
                                 <div className="flex gap-2 justify-end">
-                                    <Button variant="outline" size="icon" asChild><Link href={`/admin/manage-links/${service.id}/edit`}><Edit className="h-4 w-4"/></Link></Button>
+                                    <Button variant="outline" size="icon" onClick={() => openEditDialog(service)}><Edit className="h-4 w-4"/></Button>
                                     <Button variant="outline" size="icon" onClick={() => handleToggleStatus(service)}>{service.status === 'published' ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}</Button>
                                     <Button variant="destructive" size="icon" onClick={() => handleDelete(service.id, service.title)}><Trash2  className="h-4 w-4"/></Button>
                                 </div>
@@ -313,7 +348,7 @@ export default function ManageLinksPage() {
                                  </div>
                             </CardHeader>
                              <CardFooter className="flex gap-2 justify-end mt-auto">
-                                <Button variant="outline" size="icon" asChild><Link href={`/admin/manage-links/${service.id}/edit`}><Edit className="h-4 w-4"/></Link></Button>
+                                <Button variant="outline" size="icon" onClick={() => openEditDialog(service)}><Edit className="h-4 w-4"/></Button>
                                 <Button variant="outline" size="icon" onClick={() => handleToggleStatus(service)}>{service.status === 'published' ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}</Button>
                                 <Button variant="destructive" size="icon" onClick={() => handleDelete(service.id, service.title)}><Trash2  className="h-4 w-4"/></Button>
                              </CardFooter>
@@ -384,78 +419,93 @@ export default function ManageLinksPage() {
     </Card>
   );
 
+  const ServiceFormFields = ({ isEditMode }: { isEditMode: boolean }) => (
+    <div className="space-y-4 py-6 max-h-[70vh] overflow-y-auto pr-4">
+        <div className="grid gap-3">
+            <Label htmlFor="title">Service Title</Label>
+            <Input id="title" type="text" placeholder="e.g., How to apply for a TFN" {...form.register('title')} />
+            {form.formState.errors.title && <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>}
+        </div>
+        <div className="grid gap-3">
+            <Label htmlFor="link">Official URL</Label>
+            <Input id="link" type="url" placeholder="https://service.gov.au/..." {...form.register('link')} />
+            {form.formState.errors.link && <p className="text-sm text-destructive">{form.formState.errors.link.message}</p>}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid gap-3">
+                <Label htmlFor="country">Country</Label>
+                <Select value={form.watch('country')} onValueChange={(value) => form.setValue('country', value)}>
+                <SelectTrigger id="country"><SelectValue placeholder="Select a country" /></SelectTrigger>
+                <SelectContent>
+                    {COUNTRIES.map((c) => (<SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>))}
+                </SelectContent>
+                </Select>
+                {form.formState.errors.country && <p className="text-sm text-destructive">{form.formState.errors.country.message}</p>}
+            </div>
+            <div className="grid gap-3">
+                <Label htmlFor="state">State / Province</Label>
+                <Select value={form.watch('state')} onValueChange={(value) => form.setValue('state', value)} disabled={states.length === 0}>
+                <SelectTrigger id="state"><SelectValue placeholder="Select a state (if applicable)" /></SelectTrigger>
+                <SelectContent>
+                    {states.map((s) => (<SelectItem key={s.code} value={s.code}>{s.name}</SelectItem>))}
+                </SelectContent>
+                </Select>
+            </div>
+        </div>
+        <div className="grid gap-3">
+            <Label htmlFor="categorySlug">Category</Label>
+            <Select value={form.watch('categorySlug')} onValueChange={(value) => form.setValue('categorySlug', value)}>
+            <SelectTrigger id="categorySlug" aria-label="Select category"><SelectValue placeholder="Select category" /></SelectTrigger>
+            <SelectContent>
+                {categories.map((cat) => (<SelectItem key={cat.slug} value={cat.slug}>{cat.name}</SelectItem>))}
+            </SelectContent>
+            </Select>
+            {form.formState.errors.categorySlug && <p className="text-sm text-destructive">{form.formState.errors.categorySlug.message}</p>}
+        </div>
+        <div className="grid gap-3">
+            <Label htmlFor="description">Short Description</Label>
+            <Textarea id="description" placeholder="A brief explanation of the service." {...form.register('description')} />
+            {form.formState.errors.description && <p className="text-sm text-destructive">{form.formState.errors.description.message}</p>}
+        </div>
+        <div className="grid gap-3">
+            <Label htmlFor="steps">Steps (one per line)</Label>
+            <Textarea id="steps" rows={5} placeholder="Step 1...\nStep 2...\nStep 3..." {...form.register('steps')} />
+            {form.formState.errors.steps && <p className="text-sm text-destructive">{form.formState.errors.steps.message}</p>}
+        </div>
+        <div className="flex items-center space-x-2">
+            <Checkbox id="verified" checked={form.watch('verified')} onCheckedChange={(checked) => form.setValue('verified', !!checked)} />
+            <Label htmlFor="verified" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Mark as Verified
+            </Label>
+        </div>
+    </div>
+  );
+
   return (
     <div className="grid flex-1 items-start gap-4 md:gap-8">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Manage Links</h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        
+        {/* ADD DIALOG */}
+        <Dialog open={isAddDialogOpen} onOpenChange={(isOpen) => {
+            if (!isOpen) form.reset({ verified: false });
+            setIsAddDialogOpen(isOpen);
+        }}>
             <DialogTrigger asChild>
-                <Button>
+                <Button onClick={() => setEditingService(null)}>
                     <PlusCircle className="mr-2" />
                     Add New Service
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-2xl">
-                <form onSubmit={form.handleSubmit(onSubmit)}>
+                <form onSubmit={form.handleSubmit(handleFormSubmit)}>
                     <DialogHeader>
-                    <DialogTitle>Add a New Service</DialogTitle>
-                    <DialogDescription>
-                        Manually add a new service to the directory. This will be published immediately.
-                    </DialogDescription>
+                        <DialogTitle>Add a New Service</DialogTitle>
+                        <DialogDescription>
+                            Manually add a new service to the directory. This will be published immediately.
+                        </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-6 max-h-[70vh] overflow-y-auto pr-4">
-                        <div className="grid gap-3">
-                            <label htmlFor="title">Service Title</label>
-                            <Input id="title" type="text" placeholder="e.g., How to apply for a TFN" {...form.register('title')} />
-                            {form.formState.errors.title && <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>}
-                        </div>
-                        <div className="grid gap-3">
-                            <label htmlFor="link">Official URL</label>
-                            <Input id="link" type="url" placeholder="https://service.gov.au/..." {...form.register('link')} />
-                            {form.formState.errors.link && <p className="text-sm text-destructive">{form.formState.errors.link.message}</p>}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="grid gap-3">
-                                <label htmlFor="country">Country</label>
-                                <Select onValueChange={(value) => form.setValue('country', value)}>
-                                <SelectTrigger id="country"><SelectValue placeholder="Select a country" /></SelectTrigger>
-                                <SelectContent>
-                                    {COUNTRIES.map((c) => (<SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>))}
-                                </SelectContent>
-                                </Select>
-                                {form.formState.errors.country && <p className="text-sm text-destructive">{form.formState.errors.country.message}</p>}
-                            </div>
-                            <div className="grid gap-3">
-                                <label htmlFor="state">State / Province</label>
-                                <Select onValueChange={(value) => form.setValue('state', value)} disabled={states.length === 0}>
-                                <SelectTrigger id="state"><SelectValue placeholder="Select a state (if applicable)" /></SelectTrigger>
-                                <SelectContent>
-                                    {states.map((s) => (<SelectItem key={s.code} value={s.code}>{s.name}</SelectItem>))}
-                                </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="grid gap-3">
-                            <label htmlFor="categorySlug">Category</label>
-                            <Select onValueChange={(value) => form.setValue('categorySlug', value)}>
-                            <SelectTrigger id="categorySlug" aria-label="Select category"><SelectValue placeholder="Select category" /></SelectTrigger>
-                            <SelectContent>
-                                {categories.map((cat) => (<SelectItem key={cat.slug} value={cat.slug}>{cat.name}</SelectItem>))}
-                            </SelectContent>
-                            </Select>
-                            {form.formState.errors.categorySlug && <p className="text-sm text-destructive">{form.formState.errors.categorySlug.message}</p>}
-                        </div>
-                        <div className="grid gap-3">
-                            <label htmlFor="description">Short Description</label>
-                            <Textarea id="description" placeholder="A brief explanation of the service." {...form.register('description')} />
-                            {form.formState.errors.description && <p className="text-sm text-destructive">{form.formState.errors.description.message}</p>}
-                        </div>
-                        <div className="grid gap-3">
-                            <label htmlFor="steps">Steps (one per line)</label>
-                            <Textarea id="steps" placeholder="Step 1...\nStep 2...\nStep 3..." {...form.register('steps')} />
-                            {form.formState.errors.steps && <p className="text-sm text-destructive">{form.formState.errors.steps.message}</p>}
-                        </div>
-                    </div>
+                    <ServiceFormFields isEditMode={false} />
                     <DialogFooter>
                       <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                       <Button type="submit" disabled={isLoading}>
@@ -466,6 +516,32 @@ export default function ManageLinksPage() {
                 </form>
             </DialogContent>
         </Dialog>
+
+        {/* EDIT DIALOG */}
+        <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => {
+            if (!isOpen) form.reset({ verified: false });
+            setIsEditDialogOpen(isOpen);
+        }}>
+             <DialogContent className="sm:max-w-2xl">
+                <form onSubmit={form.handleSubmit(handleFormSubmit)}>
+                    <DialogHeader>
+                        <DialogTitle>Edit Service</DialogTitle>
+                        <DialogDescription>
+                            Update the details for &quot;{editingService?.title}&quot;.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <ServiceFormFields isEditMode={true} />
+                    <DialogFooter>
+                      <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                      <Button type="submit" disabled={isLoading}>
+                          {isLoading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />}
+                          {isLoading ? 'Saving...' : 'Save Changes'}
+                      </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+
       </div>
 
       {currentView === 'categories' ? renderCategoryView() : renderLinksView()}
@@ -473,5 +549,3 @@ export default function ManageLinksPage() {
     </div>
   );
 }
-
-  

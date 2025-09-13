@@ -30,6 +30,7 @@ export type Service = {
   status: 'published' | 'disabled';
   country: string; // e.g., 'AU', 'NP'
   state?: string; // e.g., 'NSW', 'VIC'
+  verified?: boolean;
 };
 
 export type Category = {
@@ -102,6 +103,7 @@ export const serviceConverter = {
             status: data.status || 'published', // Default to published
             country: data.country,
             state: data.state,
+            verified: data.verified || false,
         };
     },
     toFirestore: (service: Partial<Service>): DocumentData => {
@@ -116,6 +118,7 @@ export const serviceConverter = {
         if (service.status !== undefined) data.status = service.status;
         if (service.country !== undefined) data.country = service.country;
         if (service.state !== undefined) data.state = service.state;
+        if (service.verified !== undefined) data.verified = service.verified;
         return data;
     }
 };
