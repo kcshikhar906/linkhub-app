@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -70,7 +71,7 @@ export function Header() {
              <Button variant="ghost" size="icon" asChild>
                 <Link href="/add">
                     <PlusCircle className="h-6 w-6" />
-                    <span className="sr-only">Add Link</span>
+                    <span className="sr-only">List Your Service</span>
                 </Link>
             </Button>
             <Sheet open={isSheetOpen} onOpenChange={setSheetOpen}>
@@ -128,7 +129,7 @@ export function Header() {
              <Button variant="outline" size="sm" asChild>
                 <Link href="/add">
                     <PlusCircle />
-                    Suggest a Link
+                    List Your Service
                 </Link>
             </Button>
         </div>
