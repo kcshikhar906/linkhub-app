@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useAuth } from '@/context/auth-context';
@@ -76,8 +75,6 @@ import { COUNTRIES, type State } from '@/lib/countries';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
 import { CATEGORY_TAGS } from '@/lib/category-tags';
-import { summarizeLinkCard } from '@/ai/flows/summarize-link-card';
-import { Skeleton } from '@/components/ui/skeleton';
 
 
 type GroupedReports = {
@@ -127,7 +124,6 @@ function AdminPage() {
   // State for dialogs
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
   const [reviewingSubmission, setReviewingSubmission] = useState<SubmittedLink | null>(null);
-  const [isAiLoading, setIsAiLoading] = useState(false);
   const [isReportsDialogOpen, setIsReportsDialogOpen] = useState(false);
   const [viewingReports, setViewingReports] = useState<{serviceTitle: string; serviceId: string; reports: ReportedLink[] } | null>(null);
 
@@ -243,46 +239,39 @@ function AdminPage() {
     }
   }, [user, toast]);
   
-  const openReviewDialog = async (submission: SubmittedLink) => {
+  const openReviewDialog = (submission: SubmittedLink) => {
     setReviewingSubmission(submission);
     setIsReviewDialogOpen(true);
-    setIsAiLoading(true);
+
+    // The 'notes' field may contain AI-generated description, steps, and tags.
+    // For manual submissions, it's just user notes. We'll put it all in description for review.
+    let description = submission.notes || '';
+    let steps = '';
+    
+    // A simple heuristic to check if the notes field likely contains structured AI content.
+    if (description.includes('Steps:\n- ')) {
+        const parts = description.split('Steps:\n- ');
+        description = parts[0].trim();
+        if (parts[1]) {
+            // Further split to separate steps from tags
+            const stepsAndTags = parts[1].split('\n\nSuggested Tags:');
+            steps = stepsAndTags[0].replace(/- /g, '').trim();
+        }
+    }
 
     form.reset({
-        // Pre-fill with submission data as a fallback
         title: submission.title,
         link: submission.url,
         categorySlug: submission.categorySlug,
         country: submission.country,
         state: submission.state,
-        description: submission.notes || '',
+        description: description,
+        steps: steps,
+        // We let the admin choose tags manually based on the content.
+        tags: [],
+        serviceType: steps ? 'guide' : 'info',
+        verified: false,
     });
-    
-    try {
-        const aiSummary = await summarizeLinkCard({ url: submission.url, categorySlug: submission.categorySlug });
-        form.reset({
-            title: aiSummary.title,
-            link: submission.url,
-            categorySlug: submission.categorySlug,
-            country: submission.country,
-            state: submission.state,
-            description: aiSummary.description,
-            steps: aiSummary.steps.join('\n'),
-            tags: aiSummary.suggestedTags || [],
-            serviceType: aiSummary.steps.length > 0 ? 'guide' : 'info',
-            verified: false,
-        });
-
-    } catch (error) {
-        console.error("AI summarization failed:", error);
-        toast({
-            variant: "destructive",
-            title: "AI Analysis Failed",
-            description: "Could not analyze the URL. Please fill the form manually."
-        })
-    } finally {
-        setIsAiLoading(false);
-    }
   }
 
   const openReportsDialog = (reportGroup: {serviceTitle: string; serviceId: string; reports: ReportedLink[] }) => {
@@ -522,32 +511,6 @@ function AdminPage() {
     </div>
   );
 
-   const AISkeletonLoader = () => (
-    <div className="space-y-6 py-6">
-        <div className="space-y-2">
-            <Skeleton className="h-4 w-1/4" />
-            <Skeleton className="h-10 w-full" />
-        </div>
-         <div className="space-y-2">
-            <Skeleton className="h-4 w-1/4" />
-            <Skeleton className="h-10 w-full" />
-        </div>
-        <div className="space-y-2">
-            <Skeleton className="h-4 w-1/4" />
-            <Skeleton className="h-20 w-full" />
-        </div>
-        <div className="space-y-2">
-            <Skeleton className="h-4 w-1/4" />
-            <Skeleton className="h-10 w-1/2" />
-        </div>
-        <div className="space-y-2">
-            <Skeleton className="h-4 w-1/4" />
-            <Skeleton className="h-10 w-full" />
-        </div>
-    </div>
-  );
-
-
   return (
     <div className="grid gap-8">
       <div className="flex items-center justify-between">
@@ -703,27 +666,25 @@ function AdminPage() {
                   <DialogHeader>
                       <DialogTitle>Review & Approve Submission</DialogTitle>
                       <DialogDescription>
-                         {isAiLoading
-                            ? 'AI is analyzing the link...'
-                            : `Review the AI-powered suggestions for "${reviewingSubmission?.title}" before publishing.`}
+                         Review the details for &quot;{reviewingSubmission?.title}&quot; before publishing.
                       </DialogDescription>
                   </DialogHeader>
                   
-                  {isAiLoading ? <AISkeletonLoader /> : <ServiceFormFields />}
+                  <ServiceFormFields />
                   
                   <DialogFooter className="gap-2 sm:gap-0 sm:justify-between pt-4">
                     <Button
                         type="button"
                         variant="destructive"
                         onClick={(e) => handleReject(e)}
-                        disabled={isLoading || isAiLoading}
+                        disabled={isLoading}
                     >
                         <Trash2 className="mr-2" />
                         Reject
                     </Button>
                     <div className="flex gap-2">
                         <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                        <Button type="submit" disabled={isLoading || isAiLoading}>
+                        <Button type="submit" disabled={isLoading}>
                             {isLoading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />}
                             {isLoading ? 'Publishing...' : 'Approve & Publish'}
                         </Button>
@@ -849,5 +810,3 @@ function MultiSelect({ options, selected, onChange, className, placeholder = "Se
 }
 
 export default AdminPage;
-
-    
