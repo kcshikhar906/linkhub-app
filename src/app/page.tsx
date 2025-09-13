@@ -23,21 +23,21 @@ const popularSearches = [
     {
         text: 'Educational Consultancies in Bagmati',
         categorySlug: 'education-and-training',
-        tag: 'Educational Consultancy',
+        tag: 'Study abroad consultancies',
         country: 'NP',
         state: 'BAGMATI',
     },
     {
         text: 'Driving Licenses in Victoria',
         categorySlug: 'driving-and-transport',
-        tag: 'License Application',
+        tag: 'Driver licensing',
         country: 'AU',
         state: 'VIC',
     },
     {
         text: 'Community Organizations in Nepal',
         categorySlug: 'nepal-specific',
-        tag: 'Community Organizations',
+        tag: 'NGOs & nonprofits',
         country: 'NP',
         state: undefined,
     }
@@ -66,12 +66,18 @@ async function getAllCategories() {
 
 async function getPopularSearchCounts() {
     const counts = await Promise.all(popularSearches.map(async (search) => {
-        const conditions = [
+        const conditions: any[] = [
             where('categorySlug', '==', search.categorySlug),
             where('country', '==', search.country),
-            where('tags', 'array-contains', search.tag),
             where('status', '==', 'published')
         ];
+        
+        // Firestore doesn't allow `array-contains` and `in` on the same field, or multiple `array-contains`.
+        // So, we have to be specific.
+        if (search.tag) {
+            conditions.push(where('tags', 'array-contains', search.tag));
+        }
+
         if (search.state) {
             conditions.push(where('state', '==', search.state));
         }
@@ -109,27 +115,28 @@ export default async function Home({ searchParams }: { searchParams: { country?:
    <>
     <Header />
     <main className="flex-1">
-       <section className="relative h-[60vh] flex items-center justify-center text-center text-white overflow-hidden">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute z-0 w-full h-full object-cover"
-        >
-          <source src="/hero-video.mp4" type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
-        <div className="absolute z-10 w-full h-full bg-black/50"></div>
-        <div className="z-20 container px-4">
-            <TypingEffect />
-            <div className="max-w-2xl mx-auto mt-8">
-              <SearchBar />
-            </div>
-        </div>
-      </section>
-
       <div className="container mx-auto px-4 py-8 md:py-16">
+        <section className="relative h-[60vh] flex items-center justify-center text-center text-white overflow-hidden rounded-2xl shadow-2xl mb-16 md:mb-24">
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute z-0 w-full h-full object-cover"
+          >
+            <source src="/hero-video.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+          <div className="absolute z-10 w-full h-full bg-black/50"></div>
+          <div className="z-20 container px-4">
+              <TypingEffect />
+              <div className="max-w-2xl mx-auto mt-8">
+                <SearchBar />
+              </div>
+          </div>
+        </section>
+
+
         <section className="mb-16 md:mb-24">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
