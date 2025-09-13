@@ -1,7 +1,6 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { LinkCard } from '@/components/link-card';
 import { SearchBar } from '@/components/search-bar';
 import { Suspense, useEffect, useState } from 'react';
 import { Header } from '@/components/layout/header';
@@ -11,6 +10,8 @@ import { db } from '@/lib/firebase';
 import { serviceConverter, type Service } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { COUNTRIES } from '@/lib/countries';
+import { ServiceCard } from '@/components/service-card';
+import { ServiceDetailsDialog } from '@/components/service-details-dialog';
 
 function SearchResults() {
   const searchParams = useSearchParams();
@@ -20,12 +21,14 @@ function SearchResults() {
 
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+
 
   useEffect(() => {
     async function fetchServices() {
         setLoading(true);
         const conditions = [
-            where('status', '==', 'published'),
+            where('status', '==', 'published' as const),
             where('country', '==', country)
         ];
         if (state) {
@@ -47,7 +50,8 @@ function SearchResults() {
     ? services.filter(
         (service) =>
           service.title.toLowerCase().includes(queryParam.toLowerCase()) ||
-          service.description.toLowerCase().includes(queryParam.toLowerCase())
+          service.description.toLowerCase().includes(queryParam.toLowerCase()) ||
+          (service.tags && service.tags.some(tag => tag.toLowerCase().includes(queryParam.toLowerCase())))
       )
     : services;
 
@@ -58,6 +62,7 @@ function SearchResults() {
 
   return (
     <>
+      <ServiceDetailsDialog service={selectedService} isOpen={!!selectedService} onOpenChange={(isOpen) => !isOpen && setSelectedService(null)} />
       <Header />
       <main className="flex-1">
         <div className="container mx-auto px-4 py-8 md:py-16">
@@ -67,9 +72,10 @@ function SearchResults() {
             {locationName && <p className="text-muted-foreground text-center mb-8">Showing services for {locationName}</p>}
 
           {loading ? (
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Skeleton className="h-64 w-full" />
-                <Skeleton className="h-64 w-full" />
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <Skeleton className="h-40 w-full" />
+                <Skeleton className="h-40 w-full" />
+                <Skeleton className="h-40 w-full" />
             </div>
           ) : queryParam ? (
             <>
@@ -77,9 +83,9 @@ function SearchResults() {
                 Results for "{queryParam}"
               </h1>
               {filteredServices.length > 0 ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredServices.map((service) => (
-                    <LinkCard key={service.id} service={service} />
+                    <ServiceCard key={service.id} service={service} onClick={() => setSelectedService(service)} />
                   ))}
                 </div>
               ) : (
@@ -92,9 +98,9 @@ function SearchResults() {
               )}
             </>
           ) : (
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {services.map((service) => (
-                <LinkCard key={service.id} service={service} />
+                   <ServiceCard key={service.id} service={service} onClick={() => setSelectedService(service)} />
                 ))}
             </div>
           )}

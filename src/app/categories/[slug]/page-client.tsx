@@ -1,6 +1,5 @@
 'use client';
 
-import { LinkCard } from '@/components/link-card';
 import { type Category, type Service, getIcon } from '@/lib/data';
 import { COUNTRIES } from '@/lib/countries';
 import { useMemo, useState } from 'react';
@@ -9,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
+import { ServiceCard } from '@/components/service-card';
+import { ServiceDetailsDialog } from '@/components/service-details-dialog';
 
 interface CategoryPageClientProps {
     category: Category;
@@ -19,6 +20,9 @@ export function CategoryPageClient({ category, services: initialServices }: Cate
     const searchParams = useSearchParams();
     const country = searchParams.get('country') || 'AU';
     const state = searchParams.get('state');
+
+    // Dialog state
+    const [selectedService, setSelectedService] = useState<Service | null>(null);
 
     // Filtering state
     const [selectedTag, setSelectedTag] = useState<string>('ALL');
@@ -53,58 +57,61 @@ export function CategoryPageClient({ category, services: initialServices }: Cate
 
 
     return (
-        <main className="flex-1">
-            <div className="container mx-auto px-4 py-8 md:py-16">
-                <div className="flex items-center gap-4 mb-2">
-                    <Icon className="h-10 w-10 text-primary" />
-                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight font-headline">
-                        {category.name}
-                    </h1>
-                </div>
-                {locationName && <p className="text-muted-foreground mb-8">Showing services for {locationName}</p>}
+        <>
+            <ServiceDetailsDialog service={selectedService} isOpen={!!selectedService} onOpenChange={(isOpen) => !isOpen && setSelectedService(null)} />
+            <main className="flex-1">
+                <div className="container mx-auto px-4 py-8 md:py-16">
+                    <div className="flex items-center gap-4 mb-2">
+                        <Icon className="h-10 w-10 text-primary" />
+                        <h1 className="text-3xl md:text-4xl font-bold tracking-tight font-headline">
+                            {category.name}
+                        </h1>
+                    </div>
+                    {locationName && <p className="text-muted-foreground mb-8">Showing services for {locationName}</p>}
 
-                <div className="flex flex-col md:flex-row gap-4 mb-8">
-                    {availableTags.length > 0 && (
-                        <Select value={selectedTag} onValueChange={setSelectedTag}>
-                            <SelectTrigger className="w-full md:w-[240px]">
-                                <SelectValue placeholder="Filter by sub-category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">All Sub-categories</SelectItem>
-                                {availableTags.map(tag => (
-                                    <SelectItem key={tag} value={tag}>{tag}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                    <div className="flex flex-col md:flex-row gap-4 mb-8">
+                        {availableTags.length > 0 && (
+                            <Select value={selectedTag} onValueChange={setSelectedTag}>
+                                <SelectTrigger className="w-full md:w-[240px]">
+                                    <SelectValue placeholder="Filter by sub-category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">All Sub-categories</SelectItem>
+                                    {availableTags.map(tag => (
+                                        <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                        <div className="relative w-full">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                placeholder="Search within this category..."
+                                className="pl-10 h-10 w-full"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                aria-label="Search services"
+                            />
+                        </div>
+                    </div>
+
+
+                    {filteredServices.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {filteredServices.map((service) => (
+                                <ServiceCard key={service.id} service={service} onClick={() => setSelectedService(service)} />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-16 bg-card rounded-lg shadow-sm">
+                            <p className="text-muted-foreground">
+                                There are no services that match your criteria in this category for the selected region.
+                            </p>
+                        </div>
                     )}
-                    <div className="relative w-full">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                        <Input
-                            type="search"
-                            placeholder="Search within this category..."
-                            className="pl-10 h-10 w-full"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            aria-label="Search services"
-                        />
-                    </div>
                 </div>
-
-
-                {filteredServices.length > 0 ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {filteredServices.map((service) => (
-                            <LinkCard key={service.id} service={service} />
-                        ))}
-                    </div>
-                ) : (
-                    <div className="text-center py-16 bg-card rounded-lg shadow-sm">
-                        <p className="text-muted-foreground">
-                            There are no services that match your criteria in this category for the selected region.
-                        </p>
-                    </div>
-                )}
-            </div>
-        </main>
+            </main>
+        </>
     );
 }

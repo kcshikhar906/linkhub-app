@@ -22,7 +22,8 @@ import { COUNTRIES } from '@/lib/countries';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { ReportDialog } from './report-dialog';
-import { Separator } from './ui/separator';
+import { ScrollArea } from './ui/scroll-area';
+
 
 interface LinkCardProps {
   service: Service;
@@ -46,14 +47,15 @@ export function LinkCard({ service }: LinkCardProps) {
   };
 
   const handleShare = () => {
+    const shareUrl = `${window.location.origin}/share/${service.id}`;
     if (navigator.share) {
       navigator.share({
         title: service.title,
         text: `Check out this guide for "${service.title}" on LinkHub.`,
-        url: window.location.href,
+        url: shareUrl,
       }).catch(console.error);
     } else {
-      navigator.clipboard.writeText(window.location.href);
+      navigator.clipboard.writeText(shareUrl);
       toast({
         title: 'Page Link Copied!',
         description: 'You can now share it with others.',
@@ -69,7 +71,6 @@ export function LinkCard({ service }: LinkCardProps) {
         setIsOpen={setIsReportDialogOpen} 
         service={service} 
       />
-      <Card className="flex flex-col">
         <CardHeader>
           <div className="flex justify-between items-start gap-4">
              <CardTitle className="font-headline text-xl flex-1">{service.title}</CardTitle>
@@ -93,53 +94,54 @@ export function LinkCard({ service }: LinkCardProps) {
             )}
         </CardHeader>
         <CardContent className="flex-grow">
-          {service.serviceType === 'guide' && service.steps && service.steps.length > 0 && (
-            <Accordion type="single" collapsible>
-              <AccordionItem value="item-1">
-                <AccordionTrigger className="text-base">How to do it:</AccordionTrigger>
-                <AccordionContent>
-                  <ol className="list-decimal space-y-2 pl-6 text-muted-foreground">
-                    {service.steps.map((step, index) => (
-                      <li key={index}>{step}</li>
-                    ))}
-                  </ol>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          )}
+          <ScrollArea className="h-full max-h-[40vh] pr-4">
+              {service.serviceType === 'guide' && service.steps && service.steps.length > 0 && (
+                <Accordion type="single" collapsible defaultValue='item-1'>
+                  <AccordionItem value="item-1">
+                    <AccordionTrigger className="text-base">How to do it:</AccordionTrigger>
+                    <AccordionContent>
+                      <ol className="list-decimal space-y-2 pl-6 text-muted-foreground">
+                        {service.steps.map((step, index) => (
+                          <li key={index}>{step}</li>
+                        ))}
+                      </ol>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              )}
 
-          {service.serviceType === 'info' && (service.phone || service.email || service.address) && (
-             <Accordion type="single" collapsible defaultValue="item-1">
-              <AccordionItem value="item-1">
-                <AccordionTrigger className="text-base">Contact Information</AccordionTrigger>
-                <AccordionContent>
-                  <div className="space-y-3 text-muted-foreground">
-                    {service.phone && (
-                      <a href={`tel:${service.phone}`} className="flex items-center gap-3 group">
-                        <Phone className="h-4 w-4 text-primary" />
-                        <span className="group-hover:underline">{service.phone}</span>
-                      </a>
-                    )}
-                     {service.email && (
-                      <a href={`mailto:${service.email}`} className="flex items-center gap-3 group">
-                        <Mail className="h-4 w-4 text-primary" />
-                         <span className="group-hover:underline">{service.email}</span>
-                      </a>
-                    )}
-                     {service.address && (
-                      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(service.address)}`} target="_blank" rel="noopener noreferrer" className="flex items-start gap-3 group">
-                        <MapPin className="h-4 w-4 text-primary mt-1" />
-                         <span className="group-hover:underline">{service.address}</span>
-                      </a>
-                    )}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          )}
-
+              {service.serviceType === 'info' && (service.phone || service.email || service.address) && (
+                <Accordion type="single" collapsible defaultValue="item-1">
+                  <AccordionItem value="item-1">
+                    <AccordionTrigger className="text-base">Contact Information</AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-3 text-muted-foreground">
+                        {service.phone && (
+                          <a href={`tel:${service.phone}`} className="flex items-center gap-3 group">
+                            <Phone className="h-4 w-4 text-primary" />
+                            <span className="group-hover:underline">{service.phone}</span>
+                          </a>
+                        )}
+                        {service.email && (
+                          <a href={`mailto:${service.email}`} className="flex items-center gap-3 group">
+                            <Mail className="h-4 w-4 text-primary" />
+                            <span className="group-hover:underline">{service.email}</span>
+                          </a>
+                        )}
+                        {service.address && (
+                          <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(service.address)}`} target="_blank" rel="noopener noreferrer" className="flex items-start gap-3 group">
+                            <MapPin className="h-4 w-4 text-primary mt-1" />
+                            <span className="group-hover:underline">{service.address}</span>
+                          </a>
+                        )}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              )}
+           </ScrollArea>
         </CardContent>
-        <CardFooter className="flex flex-wrap gap-2 justify-between">
+        <CardFooter className="flex flex-wrap gap-2 justify-between border-t pt-6">
           <Button asChild className="bg-primary hover:bg-primary/90">
             <a href={service.link} target="_blank" rel="noopener noreferrer">
               Visit Official Site
@@ -158,7 +160,6 @@ export function LinkCard({ service }: LinkCardProps) {
             </Button>
           </div>
         </CardFooter>
-      </Card>
     </>
   );
 }
