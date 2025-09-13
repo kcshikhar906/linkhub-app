@@ -8,23 +8,18 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { type Category, type Service, categoryConverter, serviceConverter, getIcon } from '@/lib/data';
 import { COUNTRIES } from '@/lib/countries';
-import { useEffect, useMemo, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { useEffect, useMemo, useState, Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
 import { CATEGORY_TAGS } from '@/lib/category-tags';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 
-type CategoryPageProps = {
-  params: {
-    slug: string;
-  };
+type CategoryPageClientProps = {
+  slug: string;
 };
 
-export default function CategoryPage({ params }: CategoryPageProps) {
-  const { slug } = params;
+function CategoryPageClient({ slug }: CategoryPageClientProps) {
   const searchParams = useSearchParams();
   const country = searchParams.get('country') || 'AU'; // Default to Australia
   const state = searchParams.get('state');
@@ -59,15 +54,11 @@ export default function CategoryPage({ params }: CategoryPageProps) {
           where("country", "==", country),
       ];
 
-      // Note: Firestore does not support inequality checks on different fields.
-      // So, we fetch all for the country and then filter for state if needed.
-      // This is less optimal but works for this structure.
       const servicesQuery = query(collection(db, "services"), ...conditions);
       let servicesSnapshot = await getDocs(servicesQuery.withConverter(serviceConverter));
 
       let fetchedServices = servicesSnapshot.docs.map(doc => doc.data());
       
-      // If a state is selected, filter the results further on the client.
       if (state) {
         fetchedServices = fetchedServices.filter(service => service.state === state);
       }
@@ -75,7 +66,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
       setServices(fetchedServices);
 
       setLoading(false);
-      setSelectedTag(''); // Reset filters
+      setSelectedTag('');
       setSearchTerm('');
     }
 
@@ -85,10 +76,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
 
   const filteredServices = useMemo(() => {
     return services.filter(service => {
-        // Tag filter
         const tagMatch = selectedTag === '' || (service.tags && service.tags.includes(selectedTag));
-
-        // Search term filter
         const searchMatch = searchTerm === '' || 
             service.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             service.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -108,9 +96,9 @@ export default function CategoryPage({ params }: CategoryPageProps) {
               <Skeleton className="h-10 w-64" />
             </div>
             <Skeleton className="h-6 w-48 mb-8" />
-             <div className="flex gap-4 mb-8">
-                <Skeleton className="h-10 w-48" />
-                <Skeleton className="h-10 flex-1" />
+             <div className="flex flex-col md:flex-row gap-4 mb-8">
+                {availableTags.length > 0 && <Skeleton className="h-10 w-full md:w-[240px]" />}
+                <Skeleton className="h-10 w-full" />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Skeleton className="h-64 w-full" />
@@ -145,7 +133,6 @@ export default function CategoryPage({ params }: CategoryPageProps) {
           </div>
           {locationName && <p className="text-muted-foreground mb-8">Showing services for {locationName}</p>}
           
-          {/* Filter Bar */}
           <div className="flex flex-col md:flex-row gap-4 mb-8">
             {availableTags.length > 0 && (
                 <Select value={selectedTag} onValueChange={setSelectedTag}>
@@ -191,5 +178,23 @@ export default function CategoryPage({ params }: CategoryPageProps) {
       </main>
       <Footer />
     </>
+  );
+}
+
+
+type CategoryPageProps = {
+  params: {
+    slug: string;
+  };
+};
+
+// This is the main export, a Server Component that wraps the client part.
+export default function CategoryPage({ params }: CategoryPageProps) {
+  const { slug } = params;
+
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CategoryPageClient slug={slug} />
+    </Suspense>
   );
 }
