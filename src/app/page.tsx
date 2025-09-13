@@ -118,25 +118,28 @@ export default async function Home({ searchParams }: { searchParams: { country?:
     <WelcomeGuide />
     <main className="flex-1">
       {/* Hero section is pulled up behind the sticky header with a negative margin */}
-      <section className="relative h-[70vh] flex items-center justify-center text-center text-white overflow-hidden -mt-[64px] pt-[64px]">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute z-0 w-full h-full object-cover"
-        >
-          <source src="/hero-video.mp4" type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
-        <div className="absolute z-10 w-full h-full bg-black/50"></div>
-        <div className="z-20 container px-4">
-            <TypingEffect />
-            <div className="max-w-2xl mx-auto mt-8">
-              <SearchBar />
-            </div>
-        </div>
-      </section>
+      <div className="container px-4">
+        <section className="relative h-[70vh] flex items-center justify-center text-center text-white overflow-hidden -mt-[64px] pt-[64px] rounded-b-lg">
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute z-0 w-full h-full object-cover"
+          >
+            <source src="/logo/hero-video.webm" type="video/webm" />
+            Your browser does not support the video tag.
+          </video>
+          <div className="absolute z-10 w-full h-full bg-black/50"></div>
+           <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent z-20"></div>
+          <div className="z-20 container px-4">
+              <TypingEffect />
+              <div className="max-w-2xl mx-auto mt-8">
+                <SearchBar />
+              </div>
+          </div>
+        </section>
+      </div>
 
       <div className="container mx-auto px-4 py-16 md:py-24">
         <section className="mb-16 md:mb-24">
