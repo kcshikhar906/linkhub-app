@@ -458,10 +458,11 @@ function ManageLinksPageComponent() {
                             <Card className="h-full transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-1 hover:border-primary">
                                 <CardContent className="flex flex-col items-center justify-center p-6 text-center">
                                 <Icon className="h-10 w-10 mb-4 text-primary" />
-                                <h3 className="font-semibold text-base text-card-foreground">
+                                <h3 className="font-semibold text-base text-card-foreground mb-2">
                                     {category.name}
                                 </h3>
-                                <p className="text-sm text-muted-foreground mt-2">{count} service{count !== 1 && 's'}</p>
+                                <p className="text-2xl font-bold text-primary">{count}</p>
+                                <p className="text-xs text-muted-foreground">service{count !== 1 && 's'}</p>
                                 </CardContent>
                             </Card>
                         </div>
