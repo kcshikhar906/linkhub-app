@@ -23,7 +23,12 @@ import {
   HandHelping,
   Factory,
   MessageSquare,
-  ShieldAlert
+  ShieldAlert,
+  Palmtree,
+  Leaf,
+  Server,
+  Wrench,
+  Tractor,
 } from 'lucide-react';
 import { Timestamp, type DocumentData, type QueryDocumentSnapshot, type ServerTimestamp } from 'firebase/firestore';
 
@@ -98,6 +103,11 @@ export const ICONS: { [key: string]: LucideIcon } = {
     HandHelping, // Social & Community Support
     Plane, // Visas & Immigration
     Factory, // Work & Employment
+    Palmtree, // Tourism, Arts & Culture
+    Leaf, // Environment & Sustainability
+    Server, // Technology & Digital Services
+    Wrench, // Utilities & Infrastructure
+    Tractor, // Agriculture & Rural Development
 
     // Old (kept for compatibility)
     Landmark,

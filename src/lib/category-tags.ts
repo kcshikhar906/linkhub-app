@@ -4,6 +4,17 @@
  */
 
 export const CATEGORY_TAGS: { [key: string]: string[] } = {
+  // Agriculture & Rural Development
+  'agriculture-rural-development': [
+    'Agricultural ministries & boards',
+    'Farming support & cooperatives',
+    'Irrigation & water management',
+    'Agricultural research & training',
+    'Subsidies & grants for farmers',
+    'Rural development programs',
+    'Livestock & veterinary services',
+  ],
+
   // Business & Corporate
   'business-and-corporate': [
     'Company registration & licensing',
@@ -68,6 +79,17 @@ export const CATEGORY_TAGS: { [key: string]: string[] } = {
     'Disaster preparedness & response',
     'Emergency hotlines (e.g. 000, 100)',
     'Missing persons & rescue services',
+  ],
+  
+  // Environment & Sustainability
+  'environment-sustainability': [
+    'Environmental protection agencies',
+    'Climate change programs',
+    'Waste management & recycling',
+    'Renewable energy & sustainability projects',
+    'Water resources management',
+    'Wildlife conservation & forestry',
+    'Pollution control & monitoring',
   ],
 
   // Family & Community
@@ -158,6 +180,38 @@ export const CATEGORY_TAGS: { [key: string]: string[] } = {
     'Welfare & allowances',
     'Food security programs',
     'Charities & donations',
+  ],
+  
+  // Technology & Digital Services
+  'technology-digital-services': [
+    'E-Government portals (tax, utilities, permits)',
+    'National digital ID systems',
+    'Cybersecurity & data protection resources',
+    'IT companies & service providers',
+    'Tech hubs & innovation labs',
+    'Digital literacy & training programs',
+    'Online payment platforms',
+  ],
+
+  // Tourism, Arts & Culture
+  'tourism-arts-culture': [
+    'Tourism boards & visitor info',
+    'Travel & trekking agencies',
+    'National parks & heritage sites',
+    'Arts & cultural institutions (museums, galleries, theaters)',
+    'Festivals & events',
+    'Sports & recreation centers',
+    'Libraries & archives',
+  ],
+
+  // Utilities & Infrastructure
+  'utilities-infrastructure': [
+    'Electricity & power companies',
+    'Water supply & sanitation boards',
+    'Gas supply',
+    'Waste collection services',
+    'Infrastructure projects (roads, rail, airports)',
+    'Internet & telecom utilities',
   ],
 
   // Visas & Immigration
