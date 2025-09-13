@@ -59,7 +59,10 @@ import {
   BookText,
   Info,
   Check,
-  ChevronsUpDown
+  ChevronsUpDown,
+  FileText,
+  Tags,
+  Map,
 } from 'lucide-react';
 import {
   Select,
@@ -269,13 +272,15 @@ function ManageLinksPageComponent() {
 
   const handleFormSubmit: SubmitHandler<FormValues> = async (data) => {
     setIsLoading(true);
+    const isGuide = data.serviceType === 'guide';
+    
     const serviceData = {
       ...data,
       tags: data.tags || [],
-      steps: data.serviceType === 'guide' ? data.steps?.split('\n').filter((step) => step.trim() !== '') : undefined,
-      phone: data.serviceType === 'info' ? data.phone : undefined,
-      email: data.serviceType === 'info' ? data.email : undefined,
-      address: data.serviceType === 'info' ? data.address : undefined,
+      steps: isGuide ? data.steps?.split('\n').filter((step) => step.trim() !== '') : null,
+      phone: !isGuide ? data.phone : null,
+      email: !isGuide ? data.email : null,
+      address: !isGuide ? data.address : null,
       status: 'published' as const,
       verified: data.verified || false,
     };
@@ -283,7 +288,7 @@ function ManageLinksPageComponent() {
     try {
         if (editingService) {
             // Update existing service
-            const serviceRef = doc(db, 'services', editingService.id).withConverter(serviceConverter);
+            const serviceRef = doc(db, 'services', editingService.id);
             await updateDoc(serviceRef, serviceConverter.toFirestore(serviceData));
             toast({
                 title: 'Service Updated',
@@ -292,8 +297,8 @@ function ManageLinksPageComponent() {
             setIsEditDialogOpen(false);
         } else {
             // Add new service
-            const servicesCol = collection(db, 'services').withConverter(serviceConverter);
-            await addDoc(servicesCol, serviceConverter.toFirestore(serviceData));
+            const servicesCol = collection(db, 'services');
+            await addDoc(servicesCol.withConverter(serviceConverter), serviceConverter.toFirestore(serviceData));
             toast({
                 title: 'Service Added',
                 description: 'The new service has been published.',
@@ -527,126 +532,150 @@ function ManageLinksPageComponent() {
   );
 
   const ServiceFormFields = () => (
-    <div className="space-y-4 py-6 max-h-[70vh] overflow-y-auto pr-4">
-        <div className="grid gap-3">
-            <Label htmlFor="title">Service Title</Label>
-            <Input id="title" type="text" placeholder="e.g., How to apply for a TFN" {...form.register('title')} />
-            {form.formState.errors.title && <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>}
-        </div>
-        <div className="grid gap-3">
-            <Label htmlFor="link">Official URL</Label>
-            <Input id="link" type="url" placeholder="https://service.gov.au/..." {...form.register('link')} />
-            {form.formState.errors.link && <p className="text-sm text-destructive">{form.formState.errors.link.message}</p>}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="grid gap-3">
-                <Label htmlFor="country">Country</Label>
-                <Select value={form.watch('country')} onValueChange={(value) => form.setValue('country', value)}>
-                <SelectTrigger id="country"><SelectValue placeholder="Select a country" /></SelectTrigger>
-                <SelectContent>
-                    {COUNTRIES.map((c) => (<SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>))}
-                </SelectContent>
-                </Select>
-                {form.formState.errors.country && <p className="text-sm text-destructive">{form.formState.errors.country.message}</p>}
-            </div>
-            <div className="grid gap-3">
-                <Label htmlFor="state">State / Province</Label>
-                <Select value={form.watch('state')} onValueChange={(value) => form.setValue('state', value)} disabled={states.length === 0}>
-                <SelectTrigger id="state"><SelectValue placeholder="Select a state (if applicable)" /></SelectTrigger>
-                <SelectContent>
-                    {states.map((s) => (<SelectItem key={s.code} value={s.code}>{s.name}</SelectItem>))}
-                </SelectContent>
-                </Select>
-            </div>
-        </div>
-        <div className="grid gap-3">
-            <Label htmlFor="categorySlug">Category</Label>
-            <Select value={form.watch('categorySlug')} onValueChange={(value) => form.setValue('categorySlug', value)}>
-            <SelectTrigger id="categorySlug" aria-label="Select category"><SelectValue placeholder="Select category" /></SelectTrigger>
-            <SelectContent>
-                {categories.map((cat) => (<SelectItem key={cat.slug} value={cat.slug}>{cat.name}</SelectItem>))}
-            </SelectContent>
-            </Select>
-            {form.formState.errors.categorySlug && <p className="text-sm text-destructive">{form.formState.errors.categorySlug.message}</p>}
-        </div>
-        <div className="grid gap-3">
-            <Label htmlFor="description">Short Description</Label>
-            <Textarea id="description" placeholder="A brief explanation of the service." {...form.register('description')} />
-            {form.formState.errors.description && <p className="text-sm text-destructive">{form.formState.errors.description.message}</p>}
-        </div>
-        
-        {availableTags.length > 0 && (
-            <div className="grid gap-3">
-                <Label>Tags / Sub-categories</Label>
-                <MultiSelect
-                    options={availableTags.map(tag => ({ value: tag, label: tag }))}
-                    selected={form.watch('tags') || []}
-                    onChange={(selected) => form.setValue('tags', selected)}
-                    placeholder="Select tags..."
-                 />
-                 <p className="text-xs text-muted-foreground">Select one or more tags to help users filter.</p>
-            </div>
-        )}
+    <div className="space-y-6 py-6 max-h-[75vh] overflow-y-auto pr-4 -mr-4">
+        {/* Core Details */}
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg"><FileText className="h-5 w-5"/> Core Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                 <div className="grid gap-3">
+                    <Label htmlFor="title">Service Title</Label>
+                    <Input id="title" type="text" placeholder="e.g., How to apply for a TFN" {...form.register('title')} />
+                    {form.formState.errors.title && <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>}
+                </div>
+                <div className="grid gap-3">
+                    <Label htmlFor="link">Official URL</Label>
+                    <Input id="link" type="url" placeholder="https://service.gov.au/..." {...form.register('link')} />
+                    {form.formState.errors.link && <p className="text-sm text-destructive">{form.formState.errors.link.message}</p>}
+                </div>
+                <div className="grid gap-3">
+                    <Label htmlFor="description">Short Description</Label>
+                    <Textarea id="description" placeholder="A brief explanation of the service." {...form.register('description')} />
+                    {form.formState.errors.description && <p className="text-sm text-destructive">{form.formState.errors.description.message}</p>}
+                </div>
+            </CardContent>
+        </Card>
 
-        <div className="grid gap-3">
-            <Label>Service Type</Label>
-             <ToggleGroup
-                type="single"
-                value={serviceType}
-                onValueChange={(value: 'guide' | 'info') => {
-                    if (value) form.setValue('serviceType', value)
-                }}
-                className="grid grid-cols-2"
-                >
-                <ToggleGroupItem value="guide" aria-label="Select guide type">
-                    <BookText className="mr-2 h-4 w-4" />
-                    Guide
-                </ToggleGroupItem>
-                <ToggleGroupItem value="info" aria-label="Select info type">
-                    <Info className="mr-2 h-4 w-4" />
-                    Info
-                </ToggleGroupItem>
-            </ToggleGroup>
-            {form.formState.errors.serviceType && <p className="text-sm text-destructive">{form.formState.errors.serviceType.message}</p>}
-        </div>
-        
-        {serviceType === 'guide' && (
-            <div className="grid gap-3">
-                <Label htmlFor="steps">Steps (one per line)</Label>
-                <Textarea id="steps" rows={5} placeholder="Step 1...\nStep 2...\nStep 3..." {...form.register('steps')} />
-                {form.formState.errors.steps && <p className="text-sm text-destructive">{form.formState.errors.steps.message}</p>}
-            </div>
-        )}
-        
-        {serviceType === 'info' && (
-            <div className="space-y-4 rounded-md border p-4">
-                <h4 className="font-medium text-sm">Contact Information</h4>
-                 <div className="grid gap-3">
-                    <Label htmlFor="phone">Phone Number</Label>
-                     <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input id="phone" type="tel" placeholder="e.g., (02) 1234 5678" {...form.register('phone')} className="pl-10" />
-                     </div>
-                </div>
-                 <div className="grid gap-3">
-                    <Label htmlFor="email">Email Address</Label>
-                     <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input id="email" type="email" placeholder="e.g., contact@business.com.au" {...form.register('email')} className="pl-10"/>
-                     </div>
-                    {form.formState.errors.email && <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>}
-                </div>
-                 <div className="grid gap-3">
-                    <Label htmlFor="address">Physical Address</Label>
-                     <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input id="address" type="text" placeholder="e.g., 123 Example St, Sydney NSW 2000" {...form.register('address')} className="pl-10" />
+        {/* Categorization */}
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg"><Map className="h-5 w-5"/> Location & Category</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid gap-3">
+                        <Label htmlFor="country">Country</Label>
+                        <Select value={form.watch('country')} onValueChange={(value) => form.setValue('country', value)}>
+                        <SelectTrigger id="country"><SelectValue placeholder="Select a country" /></SelectTrigger>
+                        <SelectContent>
+                            {COUNTRIES.map((c) => (<SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>))}
+                        </SelectContent>
+                        </Select>
+                        {form.formState.errors.country && <p className="text-sm text-destructive">{form.formState.errors.country.message}</p>}
+                    </div>
+                    <div className="grid gap-3">
+                        <Label htmlFor="state">State / Province</Label>
+                        <Select value={form.watch('state')} onValueChange={(value) => form.setValue('state', value)} disabled={states.length === 0}>
+                        <SelectTrigger id="state"><SelectValue placeholder="Select a state (if applicable)" /></SelectTrigger>
+                        <SelectContent>
+                            {states.map((s) => (<SelectItem key={s.code} value={s.code}>{s.name}</SelectItem>))}
+                        </SelectContent>
+                        </Select>
                     </div>
                 </div>
-            </div>
-        )}
-
-        <div className="flex items-center space-x-2">
+                <div className="grid gap-3">
+                    <Label htmlFor="categorySlug">Category</Label>
+                    <Select value={form.watch('categorySlug')} onValueChange={(value) => form.setValue('categorySlug', value)}>
+                    <SelectTrigger id="categorySlug" aria-label="Select category"><SelectValue placeholder="Select category" /></SelectTrigger>
+                    <SelectContent>
+                        {categories.map((cat) => (<SelectItem key={cat.slug} value={cat.slug}>{cat.name}</SelectItem>))}
+                    </SelectContent>
+                    </Select>
+                    {form.formState.errors.categorySlug && <p className="text-sm text-destructive">{form.formState.errors.categorySlug.message}</p>}
+                </div>
+                {availableTags.length > 0 && (
+                    <div className="grid gap-3">
+                        <Label>Tags / Sub-categories</Label>
+                        <MultiSelect
+                            options={availableTags.map(tag => ({ value: tag, label: tag }))}
+                            selected={form.watch('tags') || []}
+                            onChange={(selected) => form.setValue('tags', selected)}
+                            placeholder="Select tags..."
+                         />
+                         <p className="text-xs text-muted-foreground">Select one or more tags to help users filter.</p>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+        
+        {/* Service Content */}
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg"><BookText className="h-5 w-5"/> Service Content</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                 <div className="grid gap-3">
+                    <Label>Service Type</Label>
+                     <ToggleGroup
+                        type="single"
+                        value={serviceType}
+                        onValueChange={(value: 'guide' | 'info') => {
+                            if (value) form.setValue('serviceType', value)
+                        }}
+                        className="grid grid-cols-2"
+                        >
+                        <ToggleGroupItem value="guide" aria-label="Select guide type">
+                            <BookText className="mr-2 h-4 w-4" />
+                            Guide
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="info" aria-label="Select info type">
+                            <Info className="mr-2 h-4 w-4" />
+                            Info
+                        </ToggleGroupItem>
+                    </ToggleGroup>
+                    {form.formState.errors.serviceType && <p className="text-sm text-destructive">{form.formState.errors.serviceType.message}</p>}
+                </div>
+                
+                {serviceType === 'guide' && (
+                    <div className="grid gap-3">
+                        <Label htmlFor="steps">Steps (one per line)</Label>
+                        <Textarea id="steps" rows={5} placeholder="Step 1...\nStep 2...\nStep 3..." {...form.register('steps')} />
+                        {form.formState.errors.steps && <p className="text-sm text-destructive">{form.formState.errors.steps.message}</p>}
+                    </div>
+                )}
+                
+                {serviceType === 'info' && (
+                    <div className="space-y-4 rounded-md border p-4">
+                        <h4 className="font-medium text-sm">Contact Information</h4>
+                         <div className="grid gap-3">
+                            <Label htmlFor="phone">Phone Number</Label>
+                             <div className="relative">
+                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input id="phone" type="tel" placeholder="e.g., (02) 1234 5678" {...form.register('phone')} className="pl-10" />
+                             </div>
+                        </div>
+                         <div className="grid gap-3">
+                            <Label htmlFor="email">Email Address</Label>
+                             <div className="relative">
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input id="email" type="email" placeholder="e.g., contact@business.com.au" {...form.register('email')} className="pl-10"/>
+                             </div>
+                            {form.formState.errors.email && <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>}
+                        </div>
+                         <div className="grid gap-3">
+                            <Label htmlFor="address">Physical Address</Label>
+                             <div className="relative">
+                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input id="address" type="text" placeholder="e.g., 123 Example St, Sydney NSW 2000" {...form.register('address')} className="pl-10" />
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+        
+        <div className="flex items-center space-x-2 pt-2">
             <Checkbox id="verified" checked={form.watch('verified')} onCheckedChange={(checked) => form.setValue('verified', !!checked)} />
             <Label htmlFor="verified" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                 Mark as Verified
