@@ -9,7 +9,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter
+  CardFooter,
 } from '@/components/ui/card';
 import {
   Table,
@@ -29,12 +29,6 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -46,11 +40,11 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, Check, Trash2, Loader2, PlusCircle, ArrowUpRight, Link as LinkIcon, Layers, FileClock, AlertCircle, Edit, Save, Clock } from 'lucide-react';
+import { ExternalLink, Check, Trash2, Loader2, PlusCircle, Link as LinkIcon, Layers, FileClock, AlertCircle, Save, Clock, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, deleteDoc, setDoc, updateDoc, query, orderBy, getCountFromServer, where, addDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, deleteDoc, updateDoc, query, orderBy, getCountFromServer, where, addDoc } from 'firebase/firestore';
 import {
   submissionConverter,
   type SubmittedLink,
@@ -98,9 +92,13 @@ function AdminPage() {
   const [stats, setStats] = useState({ services: 0, categories: 0, submissions: 0, reports: 0});
   const [loadingStats, setLoadingStats] = useState(true);
   
-  // State for the review dialog
+  // State for dialogs
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
   const [reviewingSubmission, setReviewingSubmission] = useState<SubmittedLink | null>(null);
+  const [isReportsDialogOpen, setIsReportsDialogOpen] = useState(false);
+  const [viewingReports, setViewingReports] = useState<{serviceTitle: string; reports: ReportedLink[] } | null>(null);
+
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [states, setStates] = useState<State[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -218,6 +216,11 @@ function AdminPage() {
         verified: false,
     });
     setIsReviewDialogOpen(true);
+  }
+
+  const openReportsDialog = (reportGroup: {serviceTitle: string; reports: ReportedLink[] }) => {
+    setViewingReports(reportGroup);
+    setIsReportsDialogOpen(true);
   }
 
   const handleApprove: SubmitHandler<ServiceFormValues> = async (data) => {
@@ -363,8 +366,8 @@ function AdminPage() {
         </div>
          <Button asChild>
             <Link href="/admin/manage-links">
-                <PlusCircle className="mr-2"/>
-                Add New Link
+                <Pencil className="mr-2"/>
+                Manage Links
             </Link>
         </Button>
       </div>
@@ -470,61 +473,27 @@ function AdminPage() {
         </CardHeader>
         <CardContent>
           {loadingReports ? <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground"/></div> :
-            <Accordion type="multiple" className="w-full">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {Object.entries(groupedReports).map(([serviceId, group]) => (
-                <AccordionItem value={serviceId} key={serviceId}>
-                  <AccordionTrigger>
-                    <div className='flex items-center gap-4'>
-                      <span className='font-medium'>{group.serviceTitle}</span>
-                      <Badge variant="destructive">{group.reports.length} pending</Badge>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Reason</TableHead>
-                          <TableHead>Reporter</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Action</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {group.reports.map((report) => (
-                          <TableRow key={report.id}>
-                            <TableCell className='max-w-xs'>{report.reason}</TableCell>
-                            <TableCell>{report.reporterEmail}</TableCell>
-                            <TableCell>{formatDistanceToNow(report.reportedAt.toDate(), { addSuffix: true })}</TableCell>
-                            <TableCell>
-                              <Badge variant={report.status === 'pending' ? 'destructive' : 'secondary'}>
-                                {report.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className='text-right'>
-                               <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleResolveReport(report.id)}
-                                  disabled={report.status === 'resolved'}
-                                >
-                                  <Check className="h-4 w-4 mr-2" />
-                                  Resolve
-                                </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </AccordionContent>
-                </AccordionItem>
+                <Card key={serviceId} className="flex flex-col cursor-pointer hover:border-destructive/50 hover:shadow-lg transition-all" onClick={() => openReportsDialog(group)}>
+                  <CardHeader>
+                    <CardTitle className="text-base font-semibold leading-tight">{group.serviceTitle}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <Badge variant="destructive">{group.reports.length} pending report{group.reports.length > 1 && 's'}</Badge>
+                  </CardContent>
+                   <CardFooter className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Clock className="h-3 w-3" />
+                      Latest: {formatDistanceToNow(group.reports[0].reportedAt.toDate(), { addSuffix: true })}
+                   </CardFooter>
+                </Card>
               ))}
-            </Accordion>
+            </div>
           }
         </CardContent>
       </Card>
       
-      {/* Review and Approve Dialog */}
+      {/* Review and Approve Submission Dialog */}
       <Dialog open={isReviewDialogOpen} onOpenChange={(isOpen) => {
           if (!isOpen) {
               setReviewingSubmission(null);
@@ -540,7 +509,7 @@ function AdminPage() {
                       </DialogDescription>
                   </DialogHeader>
                   <ServiceFormFields />
-                  <DialogFooter className="gap-2 sm:gap-0">
+                  <DialogFooter className="gap-2 sm:gap-0 sm:justify-between">
                     <Button
                         type="button"
                         variant="destructive"
@@ -560,6 +529,51 @@ function AdminPage() {
                   </DialogFooter>
               </form>
           </DialogContent>
+      </Dialog>
+
+      {/* View Reports Dialog */}
+      <Dialog open={isReportsDialogOpen} onOpenChange={setIsReportsDialogOpen}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Reports for &quot;{viewingReports?.serviceTitle}&quot;</DialogTitle>
+            <DialogDescription>Review and resolve the issues reported by users for this service.</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto pr-4">
+            <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Reason</TableHead>
+                    <TableHead>Reporter</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {viewingReports?.reports.map((report) => (
+                    <TableRow key={report.id}>
+                      <TableCell className='max-w-xs'>{report.reason}</TableCell>
+                      <TableCell>{report.reporterEmail}</TableCell>
+                      <TableCell>{formatDistanceToNow(report.reportedAt.toDate(), { addSuffix: true })}</TableCell>
+                      <TableCell className='text-right'>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleResolveReport(report.id)}
+                            disabled={report.status === 'resolved'}
+                          >
+                            <Check className="h-4 w-4 mr-2" />
+                            Resolve
+                          </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button>Close</Button></DialogClose>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
 
     </div>
