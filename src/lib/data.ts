@@ -53,7 +53,6 @@ export type SubmittedLink = {
     title: string;
     url: string;
     categorySlug: string;
-    email: string;
     notes?: string;
     country: string;
     state?: string;
@@ -173,7 +172,6 @@ export const submissionConverter = {
             title: data.title,
             url: data.url,
             categorySlug: data.categorySlug,
-            email: data.email,
             notes: data.notes,
             country: data.country,
             state: data.state,

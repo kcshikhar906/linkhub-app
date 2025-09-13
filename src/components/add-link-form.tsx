@@ -45,8 +45,7 @@ const formSchema = z.object({
   categorySlug: z.string({ required_error: 'Please select a category.' }),
   country: z.string({ required_error: 'Please select a country.' }),
   state: z.string().optional(),
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
-  notes: z.string().optional(),
+  notes: z.string().min(10, { message: 'Please provide some details about this link.' }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -71,7 +70,6 @@ export function AddLinkForm() {
     defaultValues: {
       title: '',
       url: '',
-      email: '',
       notes: '',
     },
   });
@@ -227,40 +225,23 @@ export function AddLinkForm() {
                   )}
                 />
             </div>
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Your Email</FormLabel>
-                   <FormControl>
-                    <Input
-                      type="email"
-                      placeholder="you@example.com"
-                      {...field}
-                      disabled={isLoading}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    We'll only use this to contact you if we have questions.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
              <FormField
               control={form.control}
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Additional Notes (Optional)</FormLabel>
+                  <FormLabel>Your Notes & Suggested Tags</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Anything else we should know about this link?"
+                      rows={4}
+                      placeholder="Please provide a brief description of the service. If you have any suggested tags, you can add them here (e.g., Tags: consultancy, IELTS)."
                       {...field}
                       disabled={isLoading}
                     />
                   </FormControl>
+                   <FormDescription>
+                    This helps us understand and categorize the link better.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

@@ -247,7 +247,7 @@ function AdminPage() {
         country: submission.country,
         state: submission.state,
         // Default values for fields not in submission
-        description: '', 
+        description: submission.notes || '', 
         steps: '',
         verified: false,
         serviceType: undefined, // Force user to select
@@ -552,7 +552,7 @@ function AdminPage() {
                                     {link.url} <ExternalLink className="inline h-3 w-3" />
                                 </a>
                                 {link.notes && (
-                                  <p className="text-sm text-muted-foreground mt-2 italic">
+                                  <p className="text-sm text-muted-foreground mt-2 italic line-clamp-3">
                                     &quot;{link.notes}&quot;
                                   </p>
                                 )}
@@ -616,7 +616,7 @@ function AdminPage() {
                   <DialogHeader>
                       <DialogTitle>Review & Approve Submission</DialogTitle>
                       <DialogDescription>
-                          Edit and finalize the details for &quot;{reviewingSubmission?.title}&quot; before publishing.
+                          Edit and finalize the details for &quot;{reviewingSubmission?.title}&quot; before publishing. User notes are pre-filled in the description.
                       </DialogDescription>
                   </DialogHeader>
                   <ServiceFormFields />
