@@ -679,7 +679,7 @@ function ServiceForm({ categories, editingService = null, onSuccess }: ServiceFo
         defaultValues: editingService 
             ? {
                 ...editingService,
-                steps: editingService.steps?.join('\n') || '',
+                steps: editingService.steps?.join('\\n') || '',
                 tags: editingService.tags || [],
               }
             : {
@@ -695,7 +695,7 @@ function ServiceForm({ categories, editingService = null, onSuccess }: ServiceFo
         const serviceData = {
           ...data,
           tags: data.tags || [],
-          steps: isGuide ? data.steps?.split('\n').filter((step) => step.trim() !== '') : null,
+          steps: isGuide ? data.steps?.split('\\n').filter((step) => step.trim() !== '') : null,
           phone: !isGuide ? data.phone : null,
           email: !isGuide ? data.email : null,
           address: !isGuide ? data.address : null,
@@ -880,7 +880,7 @@ const ServiceFormFields = forwardRef<HTMLDivElement, ServiceFormFieldsProps>(
                   {serviceType === 'guide' && (
                       <div className="grid gap-3">
                           <Label htmlFor="steps">Steps (one per line)</Label>
-                          <Textarea id="steps" rows={5} placeholder="Step 1...\nStep 2...\nStep 3..." {...form.register('steps')} />
+                          <Textarea id="steps" rows={5} placeholder="Step 1...\\nStep 2...\\nStep 3..." {...form.register('steps')} />
                           {form.formState.errors.steps && <p className="text-sm text-destructive">{form.formState.errors.steps.message}</p>}
                       </div>
                   )}

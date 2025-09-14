@@ -108,7 +108,7 @@ export default function BulkImportPage() {
                 const serviceData = {
                     ...(row.data as Omit<ServiceData, 'status'>),
                     status: row.data.status || 'published', // Default to 'published'
-                    steps: (row.data.steps || '').split('\n').map(s => s.trim()).filter(Boolean),
+                    steps: (row.data.steps || '').split('\\n').map(s => s.trim()).filter(Boolean),
                 };
                 batch.set(serviceDocRef, serviceData);
             }
@@ -145,7 +145,7 @@ export default function BulkImportPage() {
         <CardHeader>
           <CardTitle>Bulk Import Services</CardTitle>
           <CardDescription>
-            Upload a CSV file with service data. The header row must exactly match the following keys: `title`, `link`, `categorySlug`, `description`, `steps`, `country`, `state` (optional), `status` (optional, defaults to 'published'). For the `steps` column, separate each step with a newline character within the cell.
+            Upload a CSV file with service data. The header row must exactly match the following keys: `title`, `link`, `categorySlug`, `description`, `steps`, `country`, `state` (optional), `status` (optional, defaults to 'published'). For the `steps` column, separate each step with the characters `\n` (a literal backslash followed by 'n') within the cell.
           </CardDescription>
         </CardHeader>
         <CardContent>

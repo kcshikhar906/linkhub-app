@@ -148,7 +148,7 @@ export const serviceConverter = {
             iconDataUri: data.iconDataUri,
         };
     },
-    toFirestore: (service: Partial<Service>): DocumentData => {
+    toFirestore: (service: Partial<Service> | Omit<any, "status"> & { status: "published" | "disabled"; steps: any[]; }): DocumentData => {
         const dataToUpdate: DocumentData = { ...service };
         
         // Ensure type-specific fields are null if not applicable
