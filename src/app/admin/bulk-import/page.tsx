@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Loader2, Upload, FileCheck2, AlertCircle, Save } from 'lucide-react';
+import { Loader2, Upload, FileCheck2, AlertCircle, Save, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 import { z } from 'zod';
@@ -20,42 +20,46 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { db } from '@/lib/firebase';
 import { collection, doc, writeBatch } from 'firebase/firestore';
-import { serviceConverter } from '@/lib/data';
+import { serviceConverter, type Service, type Category, categoryConverter } from '@/lib/data';
 import { COUNTRIES } from '@/lib/countries';
+import { summarizeLinkCard, type SummarizeLinkCardOutput } from '@/ai/flows/summarize-link-card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
-// Generate valid country and state codes from the COUNTRIES constant
-const validCountryCodes = COUNTRIES.map(c => c.code) as [string, ...string[]];
-const validStateCodes = COUNTRIES.flatMap(c => c.states.map(s => s.code));
 
-const serviceSchema = z.object({
-    title: z.string().min(5, 'Title is too short'),
-    link: z.string().url('Invalid URL'),
+const csvRowSchema = z.object({
+    url: z.string().url('Invalid URL'),
     categorySlug: z.string().min(1, 'Category slug is required'),
-    description: z.string().min(10, 'Description is too short'),
-    steps: z.string().min(10, 'Steps are required'),
-    country: z.enum(validCountryCodes, {
-        errorMap: () => ({ message: `Country must be one of: ${validCountryCodes.join(', ')}`})
-    }),
-    state: z.string().optional().refine(val => !val || validStateCodes.includes(val), {
-        message: `State code is not valid for any country.`
-    }),
-    status: z.enum(['published', 'disabled']).optional(),
 });
 
-type ServiceData = z.infer<typeof serviceSchema>;
-type ParsedRow = {
-    data: Partial<ServiceData>;
-    isValid: boolean;
-    errors: z.ZodError | null;
-}
+type CsvRow = z.infer<typeof csvRowSchema>;
 
+type ProcessedRow = {
+    originalData: CsvRow;
+    status: 'pending' | 'loading' | 'success' | 'error';
+    aiData?: SummarizeLinkCardOutput;
+    error?: string;
+}
 
 export default function BulkImportPage() {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isAiRunning, setIsAiRunning] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const [parsedData, setParsedData] = useState<ParsedRow[]>([]);
+  const [processedData, setProcessedData] = useState<ProcessedRow[]>([]);
+  
+  // Location state
+  const [country, setCountry] = useState('AU');
+  const [state, setState] = useState<string | undefined>(undefined);
+  
+  const statesForCountry = useMemo(() => COUNTRIES.find(c => c.code === country)?.states || [], [country]);
+
   
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -65,7 +69,7 @@ export default function BulkImportPage() {
           return;
       }
       setFile(selectedFile);
-      setParsedData([]); // Reset previous preview
+      setProcessedData([]); // Reset previous preview
     }
   };
 
@@ -74,34 +78,57 @@ export default function BulkImportPage() {
           toast({ variant: 'destructive', title: 'No File Selected', description: 'Please select a CSV file to parse.' });
           return;
       }
-      setIsLoading(true);
-      Papa.parse(file, {
+      setIsParsing(true);
+      Papa.parse<CsvRow>(file, {
           header: true,
           skipEmptyLines: true,
           complete: (results) => {
               const validatedData = results.data.map(row => {
-                  const result = serviceSchema.safeParse(row);
-                  return {
-                      data: row as Partial<ServiceData>,
-                      isValid: result.success,
-                      errors: !result.success ? result.error : null,
-                  };
+                  const result = csvRowSchema.safeParse(row);
+                  if (result.success) {
+                    return { originalData: result.data, status: 'pending' as const };
+                  }
+                  return { originalData: row, status: 'error' as const, error: result.error.flatten().fieldErrors.url?.[0] || result.error.flatten().fieldErrors.categorySlug?.[0] || 'Invalid row' };
               });
-              setParsedData(validatedData);
-              setIsLoading(false);
-              toast({ title: 'File Parsed', description: 'Review the data below before saving.'});
+
+              setProcessedData(validatedData);
+              setIsParsing(false);
+              toast({ title: 'File Parsed', description: 'Review the URLs and categories below before generating data with AI.'});
           },
           error: (error) => {
               console.error("CSV Parsing Error:", error);
               toast({ variant: 'destructive', title: 'Parsing Error', description: 'Could not parse the CSV file.'});
-              setIsLoading(false);
+              setIsParsing(false);
           }
       });
   };
 
+  const handleAiGeneration = async () => {
+    setIsAiRunning(true);
+
+    const promises = processedData.map(async (row, index) => {
+        if (row.status === 'pending') {
+            setProcessedData(prev => prev.map((r, i) => i === index ? { ...r, status: 'loading' } : r));
+            try {
+                const aiResult = await summarizeLinkCard(row.originalData);
+                setProcessedData(prev => prev.map((r, i) => i === index ? { ...r, status: 'success', aiData: aiResult } : r));
+            } catch (error) {
+                console.error("AI Error for", row.originalData.url, error);
+                setProcessedData(prev => prev.map((r, i) => i === index ? { ...r, status: 'error', error: 'AI summarization failed.' } : r));
+            }
+        }
+        return Promise.resolve();
+    });
+
+    await Promise.all(promises);
+    setIsAiRunning(false);
+    toast({ title: 'AI Processing Complete', description: 'Review the generated data before saving.'});
+  }
+
+
   const handleSave = async () => {
     if (!allRowsValid) {
-        toast({ variant: 'destructive', title: 'Invalid Data', description: 'Cannot save data with errors.'});
+        toast({ variant: 'destructive', title: 'Invalid Data', description: 'Cannot save data with errors or pending generation.'});
         return;
     }
 
@@ -110,13 +137,25 @@ export default function BulkImportPage() {
         const batch = writeBatch(db);
         const servicesCollection = collection(db, 'services').withConverter(serviceConverter);
 
-        parsedData.forEach(row => {
-            if (row.isValid) {
+        processedData.forEach(row => {
+            if (row.status === 'success' && row.aiData) {
                 const serviceDocRef = doc(servicesCollection);
-                const serviceData = {
-                    ...(row.data as Omit<ServiceData, 'status'>),
-                    status: row.data.status || 'published', // Default to 'published'
-                    steps: (row.data.steps || '').split('\\n').map(s => s.trim()).filter(Boolean),
+                const serviceData: Omit<Service, 'id'> = {
+                    title: row.aiData.title,
+                    description: row.aiData.description,
+                    link: row.originalData.url,
+                    categorySlug: row.originalData.categorySlug,
+                    steps: row.aiData.steps,
+                    tags: row.aiData.suggestedTags,
+                    iconDataUri: row.aiData.iconDataUri,
+                    country,
+                    state,
+                    status: 'published',
+                    verified: true, // Assume verified since it's an admin import
+                    serviceType: row.aiData.steps.length > 0 ? 'guide' : 'info',
+                    phone: null,
+                    email: null,
+                    address: null,
                 };
                 batch.set(serviceDocRef, serviceData);
             }
@@ -126,11 +165,11 @@ export default function BulkImportPage() {
 
         toast({
             title: 'Success!',
-            description: `${parsedData.length} services have been imported successfully.`,
+            description: `${processedData.filter(r => r.status === 'success').length} services have been imported successfully.`,
         });
         // Reset state
         setFile(null);
-        setParsedData([]);
+        setProcessedData([]);
 
     } catch (error) {
         console.error("Error saving to Firestore:", error);
@@ -144,21 +183,20 @@ export default function BulkImportPage() {
     setIsSaving(false);
   }
 
-  const allRowsValid = parsedData.length > 0 && parsedData.every(row => row.isValid);
-
+  const allRowsValid = processedData.length > 0 && processedData.every(row => row.status === 'success' || row.status === 'error');
+  const canSave = processedData.length > 0 && processedData.some(r => r.status === 'success') && !processedData.some(r => r.status !== 'success');
+  const canGenerate = processedData.length > 0 && processedData.some(r => r.status === 'pending');
 
   return (
     <div className="grid flex-1 items-start gap-4 md:gap-8">
       <Card>
         <CardHeader>
-          <CardTitle>Bulk Import Services</CardTitle>
+          <CardTitle>AI-Powered Bulk Import</CardTitle>
           <CardDescription>
-            Upload a CSV file with service data. The header row must exactly match the following keys: `title`, `link`, `categorySlug`, `description`, `steps`, `country`, `state` (optional), `status` (optional, defaults to 'published'). 
-            For the `country` and `state` columns, you must use the 2-letter country codes (e.g., AU, NP) and the appropriate state codes (e.g., NSW, BAGMATI). 
-            For the `steps` column, separate each step with the characters `\n` (a literal backslash followed by 'n') within the cell.
+            Upload a CSV file with `url` and `categorySlug` headers. The AI will generate the title, description, steps, and tags for each link. Assign a location below, and then save to the database.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-4">
             <Input
               id="csv-file"
@@ -167,20 +205,42 @@ export default function BulkImportPage() {
               onChange={handleFileChange}
               className="max-w-xs"
             />
-            <Button onClick={handleParse} disabled={!file || isLoading}>
-              {isLoading ? <Loader2 className="mr-2 animate-spin" /> : <FileCheck2 className="mr-2" />}
-              {isLoading ? 'Parsing...' : 'Preview Data'}
+            <Button onClick={handleParse} disabled={!file || isParsing}>
+              {isParsing ? <Loader2 className="mr-2 animate-spin" /> : <FileCheck2 className="mr-2" />}
+              {isParsing ? 'Parsing...' : 'Preview CSV'}
             </Button>
           </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                <Select value={country} onValueChange={(val) => { setCountry(val); setState(undefined); }}>
+                    <SelectTrigger><SelectValue placeholder="Select Country" /></SelectTrigger>
+                    <SelectContent>
+                        {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                 <Select value={state} onValueChange={setState} disabled={statesForCountry.length === 0}>
+                    <SelectTrigger><SelectValue placeholder="Select State (Optional)" /></SelectTrigger>
+                    <SelectContent>
+                        {statesForCountry.map(s => <SelectItem key={s.code} value={s.code}>{s.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+            </div>
         </CardContent>
+         {processedData.length > 0 && (
+            <CardFooter className="border-t pt-6">
+                <Button onClick={handleAiGeneration} disabled={!canGenerate || isAiRunning}>
+                    {isAiRunning ? <Loader2 className="mr-2 animate-spin" /> : <Wand2 className="mr-2" />}
+                    {isAiRunning ? 'Generating...' : 'Generate Data with AI'}
+                </Button>
+            </CardFooter>
+         )}
       </Card>
 
-      {parsedData.length > 0 && (
+      {processedData.length > 0 && (
           <Card>
               <CardHeader>
-                  <CardTitle>Preview Data</CardTitle>
+                  <CardTitle>Preview & Generate</CardTitle>
                    <CardDescription>
-                        Review the data parsed from your CSV file. Rows with errors cannot be imported.
+                        Review the data parsed from your CSV file. Click &quot;Generate Data with AI&quot; to process the links.
                     </CardDescription>
               </CardHeader>
               <CardContent>
@@ -188,31 +248,34 @@ export default function BulkImportPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Title</TableHead>
+                                <TableHead className="w-[120px]">Status</TableHead>
+                                <TableHead>URL</TableHead>
+                                <TableHead>Generated Title</TableHead>
                                 <TableHead>Category</TableHead>
-                                <TableHead>Location</TableHead>
-                                <TableHead>Errors</TableHead>
+                                <TableHead>Error</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {parsedData.map((row, index) => (
+                            {processedData.map((row, index) => (
                                 <TableRow key={index}>
                                     <TableCell>
-                                        <Badge variant={row.isValid ? 'default' : 'destructive'}>
-                                            {row.isValid ? 'Valid' : 'Invalid'}
-                                        </Badge>
+                                        <div className="flex items-center gap-2">
+                                            {row.status === 'loading' && <Loader2 className="animate-spin h-4 w-4" />}
+                                            <Badge variant={
+                                                row.status === 'success' ? 'default' :
+                                                row.status === 'error' ? 'destructive' :
+                                                'secondary'
+                                            }>
+                                                {row.status}
+                                            </Badge>
+                                        </div>
                                     </TableCell>
-                                    <TableCell className="font-medium">{row.data.title}</TableCell>
-                                    <TableCell>{row.data.categorySlug}</TableCell>
-                                    <TableCell>{row.data.country}{row.data.state && `, ${row.data.state}`}</TableCell>
+                                    <TableCell className="font-medium truncate max-w-xs"><a href={row.originalData.url} target='_blank' rel="noreferrer" className="hover:underline">{row.originalData.url}</a></TableCell>
+                                    <TableCell>{row.aiData?.title}</TableCell>
+                                    <TableCell>{row.originalData.categorySlug}</TableCell>
                                     <TableCell>
-                                        {row.errors && (
-                                            <ul className="text-xs text-destructive list-disc list-inside">
-                                                {row.errors.issues.map(issue => (
-                                                    <li key={issue.path.join('.')}>{issue.path.join('.')}: {issue.message}</li>
-                                                ))}
-                                            </ul>
+                                        {row.error && (
+                                            <p className="text-xs text-destructive">{row.error}</p>
                                         )}
                                     </TableCell>
                                 </TableRow>
@@ -222,13 +285,13 @@ export default function BulkImportPage() {
                   </ScrollArea>
               </CardContent>
               <CardFooter className="flex justify-between items-center">
-                    <Button onClick={handleSave} disabled={!allRowsValid || isSaving}>
+                    <Button onClick={handleSave} disabled={!canSave || isSaving}>
                          {isSaving ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />}
-                        {isSaving ? 'Saving...' : 'Save to Database'}
+                        {isSaving ? 'Saving...' : `Save ${processedData.filter(r => r.status === 'success').length} Services`}
                     </Button>
-                    {!allRowsValid && (
+                    {!canSave && processedData.length > 0 && (
                         <p className="text-sm text-destructive flex items-center gap-2">
-                           <AlertCircle className="h-4 w-4" /> Please fix the errors in your CSV file before saving.
+                           <AlertCircle className="h-4 w-4" /> Please fix errors or finish AI generation before saving.
                         </p>
                     )}
               </CardFooter>
@@ -237,3 +300,5 @@ export default function BulkImportPage() {
     </div>
   );
 }
+
+    
