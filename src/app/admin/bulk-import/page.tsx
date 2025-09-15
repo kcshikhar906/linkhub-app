@@ -21,7 +21,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { db } from '@/lib/firebase';
 import { collection, doc, writeBatch } from 'firebase/firestore';
 import { serviceConverter } from '@/lib/data';
+import { COUNTRIES } from '@/lib/countries';
 
+// Generate valid country and state codes from the COUNTRIES constant
+const validCountryCodes = COUNTRIES.map(c => c.code) as [string, ...string[]];
+const validStateCodes = COUNTRIES.flatMap(c => c.states.map(s => s.code));
 
 const serviceSchema = z.object({
     title: z.string().min(5, 'Title is too short'),
@@ -29,8 +33,12 @@ const serviceSchema = z.object({
     categorySlug: z.string().min(1, 'Category slug is required'),
     description: z.string().min(10, 'Description is too short'),
     steps: z.string().min(10, 'Steps are required'),
-    country: z.string().min(2, 'Country is required'),
-    state: z.string().optional(),
+    country: z.enum(validCountryCodes, {
+        errorMap: () => ({ message: `Country must be one of: ${validCountryCodes.join(', ')}`})
+    }),
+    state: z.string().optional().refine(val => !val || validStateCodes.includes(val), {
+        message: `State code is not valid for any country.`
+    }),
     status: z.enum(['published', 'disabled']).optional(),
 });
 
@@ -145,7 +153,9 @@ export default function BulkImportPage() {
         <CardHeader>
           <CardTitle>Bulk Import Services</CardTitle>
           <CardDescription>
-            Upload a CSV file with service data. The header row must exactly match the following keys: `title`, `link`, `categorySlug`, `description`, `steps`, `country`, `state` (optional), `status` (optional, defaults to 'published'). For the `steps` column, separate each step with the characters `\n` (a literal backslash followed by 'n') within the cell.
+            Upload a CSV file with service data. The header row must exactly match the following keys: `title`, `link`, `categorySlug`, `description`, `steps`, `country`, `state` (optional), `status` (optional, defaults to 'published'). 
+            For the `country` and `state` columns, you must use the 2-letter country codes (e.g., AU, NP) and the appropriate state codes (e.g., NSW, BAGMATI). 
+            For the `steps` column, separate each step with the characters `\n` (a literal backslash followed by 'n') within the cell.
           </CardDescription>
         </CardHeader>
         <CardContent>
