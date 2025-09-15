@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -33,14 +34,14 @@ import {
 
 
 const csvRowSchema = z.object({
-    url: z.string().url('Invalid URL'),
+    link: z.string().url('Invalid URL'),
     categorySlug: z.string().min(1, 'Category slug is required'),
 });
 
 type CsvRow = z.infer<typeof csvRowSchema>;
 
 type ProcessedRow = {
-    originalData: CsvRow;
+    originalData: CsvRow & {[key: string]: any}; // Allow other keys for robust parsing
     status: 'pending' | 'loading' | 'success' | 'error';
     aiData?: SummarizeLinkCardOutput;
     error?: string;
@@ -79,7 +80,7 @@ export default function BulkImportPage() {
           return;
       }
       setIsParsing(true);
-      Papa.parse<CsvRow>(file, {
+      Papa.parse(file, {
           header: true,
           skipEmptyLines: true,
           complete: (results) => {
@@ -88,7 +89,10 @@ export default function BulkImportPage() {
                   if (result.success) {
                     return { originalData: result.data, status: 'pending' as const };
                   }
-                  return { originalData: row, status: 'error' as const, error: result.error.flatten().fieldErrors.url?.[0] || result.error.flatten().fieldErrors.categorySlug?.[0] || 'Invalid row' };
+                  // Handle Zod error formatting
+                  const formattedError = result.error.flatten().fieldErrors;
+                  const errorMessage = Object.entries(formattedError).map(([key, value]) => `${key}: ${value?.join(', ')}`).join('; ');
+                  return { originalData: row as any, status: 'error' as const, error: errorMessage || 'Invalid row structure.' };
               });
 
               setProcessedData(validatedData);
@@ -110,10 +114,10 @@ export default function BulkImportPage() {
         if (row.status === 'pending') {
             setProcessedData(prev => prev.map((r, i) => i === index ? { ...r, status: 'loading' } : r));
             try {
-                const aiResult = await summarizeLinkCard(row.originalData);
+                const aiResult = await summarizeLinkCard({ url: row.originalData.link, categorySlug: row.originalData.categorySlug });
                 setProcessedData(prev => prev.map((r, i) => i === index ? { ...r, status: 'success', aiData: aiResult } : r));
             } catch (error) {
-                console.error("AI Error for", row.originalData.url, error);
+                console.error("AI Error for", row.originalData.link, error);
                 setProcessedData(prev => prev.map((r, i) => i === index ? { ...r, status: 'error', error: 'AI summarization failed.' } : r));
             }
         }
@@ -127,8 +131,9 @@ export default function BulkImportPage() {
 
 
   const handleSave = async () => {
-    if (!canSave) {
-        toast({ variant: 'destructive', title: 'Invalid Data', description: 'Cannot save data with errors or pending generation.'});
+    const successRows = processedData.filter(r => r.status === 'success');
+    if (successRows.length === 0) {
+        toast({ variant: 'destructive', title: 'No Data to Save', description: 'There are no successfully processed services to save.'});
         return;
     }
 
@@ -137,13 +142,13 @@ export default function BulkImportPage() {
         const batch = writeBatch(db);
         const servicesCollection = collection(db, 'services').withConverter(serviceConverter);
 
-        processedData.forEach(row => {
-            if (row.status === 'success' && row.aiData) {
+        successRows.forEach(row => {
+            if (row.aiData) {
                 const serviceDocRef = doc(servicesCollection);
                 const serviceData: Omit<Service, 'id'> = {
                     title: row.aiData.title,
                     description: row.aiData.description,
-                    link: row.originalData.url,
+                    link: row.originalData.link,
                     categorySlug: row.originalData.categorySlug,
                     steps: row.aiData.steps,
                     tags: row.aiData.suggestedTags,
@@ -165,7 +170,7 @@ export default function BulkImportPage() {
 
         toast({
             title: 'Success!',
-            description: `${processedData.filter(r => r.status === 'success').length} services have been imported successfully.`,
+            description: `${successRows.length} services have been imported successfully.`,
         });
         // Reset state
         setFile(null);
@@ -183,8 +188,9 @@ export default function BulkImportPage() {
     setIsSaving(false);
   }
 
-  const canGenerate = useMemo(() => processedData.length > 0 && processedData.some(r => r.status === 'pending'), [processedData]);
-  const canSave = useMemo(() => processedData.length > 0 && processedData.every(r => r.status === 'success'), [processedData]);
+  const canGenerate = useMemo(() => processedData.length > 0 && processedData.some(r => r.status === 'pending') && !isAiRunning, [processedData, isAiRunning]);
+  const canSave = useMemo(() => processedData.length > 0 && processedData.every(r => r.status === 'success' || r.status === 'error'), [processedData]);
+  const successfulRowsCount = useMemo(() => processedData.filter(r => r.status === 'success').length, [processedData]);
 
 
   return (
@@ -193,7 +199,7 @@ export default function BulkImportPage() {
         <CardHeader>
           <CardTitle>AI-Powered Bulk Import</CardTitle>
           <CardDescription>
-            Upload a CSV file with `url` and `categorySlug` headers. The AI will generate the title, description, steps, and tags for each link. Assign a location below, and then save to the database.
+            Upload a CSV file with `link` and `categorySlug` headers. The AI will generate the title, description, steps, and tags for each link. Assign a location below, and then save to the database.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -227,7 +233,7 @@ export default function BulkImportPage() {
         </CardContent>
          {processedData.length > 0 && (
             <CardFooter className="border-t pt-6">
-                <Button onClick={handleAiGeneration} disabled={!canGenerate || isAiRunning}>
+                <Button onClick={handleAiGeneration} disabled={!canGenerate}>
                     {isAiRunning ? <Loader2 className="mr-2 animate-spin" /> : <Wand2 className="mr-2" />}
                     {isAiRunning ? 'Generating...' : 'Generate Data with AI'}
                 </Button>
@@ -270,7 +276,7 @@ export default function BulkImportPage() {
                                             </Badge>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="font-medium truncate max-w-xs"><a href={row.originalData.url} target='_blank' rel="noreferrer" className="hover:underline">{row.originalData.url}</a></TableCell>
+                                    <TableCell className="font-medium truncate max-w-xs"><a href={row.originalData.link} target='_blank' rel="noreferrer" className="hover:underline">{row.originalData.link}</a></TableCell>
                                     <TableCell>{row.aiData?.title}</TableCell>
                                     <TableCell>{row.originalData.categorySlug}</TableCell>
                                     <TableCell>
@@ -285,9 +291,9 @@ export default function BulkImportPage() {
                   </ScrollArea>
               </CardContent>
               <CardFooter className="flex justify-between items-center">
-                    <Button onClick={handleSave} disabled={!canSave || isSaving}>
+                    <Button onClick={handleSave} disabled={!canSave || isSaving || successfulRowsCount === 0}>
                          {isSaving ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />}
-                        {isSaving ? 'Saving...' : `Save ${processedData.filter(r => r.status === 'success').length} Services`}
+                        {isSaving ? 'Saving...' : `Save ${successfulRowsCount} Services`}
                     </Button>
                     {!canSave && processedData.length > 0 && (
                         <p className="text-sm text-destructive flex items-center gap-2">
