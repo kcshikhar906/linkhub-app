@@ -127,7 +127,7 @@ export default function BulkImportPage() {
 
 
   const handleSave = async () => {
-    if (!allRowsValid) {
+    if (!canSave) {
         toast({ variant: 'destructive', title: 'Invalid Data', description: 'Cannot save data with errors or pending generation.'});
         return;
     }
@@ -183,9 +183,9 @@ export default function BulkImportPage() {
     setIsSaving(false);
   }
 
-  const allRowsValid = processedData.length > 0 && processedData.every(row => row.status === 'success' || row.status === 'error');
-  const canSave = processedData.length > 0 && processedData.some(r => r.status === 'success') && !processedData.some(r => r.status !== 'success');
-  const canGenerate = processedData.length > 0 && processedData.some(r => r.status === 'pending');
+  const canGenerate = useMemo(() => processedData.length > 0 && processedData.some(r => r.status === 'pending'), [processedData]);
+  const canSave = useMemo(() => processedData.length > 0 && processedData.every(r => r.status === 'success'), [processedData]);
+
 
   return (
     <div className="grid flex-1 items-start gap-4 md:gap-8">
@@ -300,5 +300,3 @@ export default function BulkImportPage() {
     </div>
   );
 }
-
-    
