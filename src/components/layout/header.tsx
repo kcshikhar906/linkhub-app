@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, PlusCircle, Search, Shield, ShoppingBag } from 'lucide-react';
+import { Menu, PlusCircle, Calendar, Shield, ShoppingBag } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { LinkHubLogo } from '@/components/icons';
@@ -17,6 +17,7 @@ const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/categories', label: 'All Categories' },
   { href: '/find-shops', label: 'Find Shops' },
+  { href: '/events', label: 'Events' },
   { href: '/about', label: 'About' },
 ];
 
@@ -29,19 +30,20 @@ export function Header() {
   const NavLink = ({ href, label }: { href: string; label:string; }) => {
     const isActive =
       href === '/' ? pathname === href : pathname.startsWith(href);
-    const isFindShopsLink = href === '/find-shops';
+    const isSpecialLink = href === '/find-shops' || href === '/events';
     
     return (
       <Link
         href={href}
         className={cn(
           'text-sm font-medium transition-colors hover:text-primary flex items-center gap-2',
-          isActive ? (isFindShopsLink ? 'text-accent' : 'text-primary') : 'text-muted-foreground',
-          isFindShopsLink && 'hover:text-accent'
+          isActive ? (isSpecialLink ? 'text-accent' : 'text-primary') : 'text-muted-foreground',
+          isSpecialLink && 'hover:text-accent'
         )}
         onClick={() => setSheetOpen(false)}
       >
-        {isFindShopsLink && <ShoppingBag className="h-4 w-4" />}
+        {href === '/find-shops' && <ShoppingBag className="h-4 w-4" />}
+        {href === '/events' && <Calendar className="h-4 w-4" />}
         {label}
       </Link>
     );
@@ -121,12 +123,6 @@ export function Header() {
         </nav>
         <div className="flex flex-1 items-center justify-end gap-4">
             <LocationSelector />
-            <Button variant="ghost" size="icon" asChild>
-                <Link href="/search">
-                    <Search className="h-5 w-5" />
-                    <span className="sr-only">Search</span>
-                </Link>
-            </Button>
              <Button variant="outline" size="sm" asChild>
                 <Link href="/add">
                     <PlusCircle />
