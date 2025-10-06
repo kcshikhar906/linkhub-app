@@ -69,9 +69,18 @@ export type SubmittedContact = {
     email: string;
     phone?: string;
     submissionType: 'service' | 'shop' | 'event';
-    notes: string;
+    notes?: string;
     status: 'pending' | 'resolved';
     submittedAt: Timestamp | ServerTimestamp;
+
+    // Optional fields based on submission type
+    url?: string;
+    categorySlug?: string;
+    shopName?: string;
+    mallId?: string;
+    eventName?: string;
+    startDate?: Timestamp;
+    endDate?: Timestamp;
 }
 
 export type ReportedLink = {
@@ -208,6 +217,14 @@ export const submissionConverter = {
             notes: data.notes,
             status: data.status || 'pending',
             submittedAt: submittedAt,
+
+            url: data.url,
+            categorySlug: data.categorySlug,
+            shopName: data.shopName,
+            mallId: data.mallId,
+            eventName: data.eventName,
+            startDate: data.startDate,
+            endDate: data.endDate,
         };
     },
     toFirestore: (submission: Omit<SubmittedContact, 'id'>): DocumentData => {
@@ -238,3 +255,5 @@ export const reportConverter = {
         };
     }
 }
+
+    

@@ -12,23 +12,6 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogClose,
-} from '@/components/ui/dialog';
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -40,7 +23,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, Check, Trash2, Loader2, Link as LinkIcon, Layers, FileClock, AlertCircle, Edit, Clock, Pencil, Mail, Phone, ShoppingBag, Calendar, User } from 'lucide-react';
+import { ExternalLink, Check, Trash2, Loader2, Link as LinkIcon, Layers, FileClock, AlertCircle, Edit, Clock, Pencil, Mail, Phone, ShoppingBag, Calendar, User, Building, Home } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
@@ -50,8 +33,9 @@ import {
   type SubmittedContact,
   reportConverter,
   type ReportedLink,
+  getIcon
 } from '@/lib/data';
-import { formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 
 type GroupedReports = {
@@ -72,7 +56,6 @@ function AdminPage() {
   const [stats, setStats] = useState({ services: 0, categories: 0, submissions: 0, reports: 0});
   const [loadingStats, setLoadingStats] = useState(true);
   
-  // State for dialogs
   const [isReportsDialogOpen, setIsReportsDialogOpen] = useState(false);
   const [viewingReports, setViewingReports] = useState<{serviceTitle: string; serviceId: string; reports: ReportedLink[] } | null>(null);
   
@@ -186,12 +169,12 @@ function AdminPage() {
     }
   }
 
-  const SubmissionTypeIcon = ({ type }: { type: SubmittedContact['submissionType']}) => {
+  const SubmissionTypeIcon = ({ type, iconName }: { type: SubmittedContact['submissionType'], iconName?: string }) => {
     switch (type) {
-        case 'service': return <LinkIcon className="h-4 w-4" />;
+        case 'service': return iconName ? getIcon(iconName)({ className: 'h-4 w-4'}) : <LinkIcon className="h-4 w-4" />;
         case 'shop': return <ShoppingBag className="h-4 w-4" />;
         case 'event': return <Calendar className="h-4 w-4" />;
-        default: return null;
+        default: return <Home className="h-4 w-4" />;
     }
   }
 
@@ -261,7 +244,7 @@ function AdminPage() {
           <CardDescription>
             {loadingSubmissions ? 'Loading inquiries...' : 
                 submissions.length > 0
-              ? 'Contact these users to get more details about their submissions.'
+              ? 'Review new submissions for services, shops, and events.'
               : 'There are no pending inquiries.'}
           </CardDescription>
         </CardHeader>
@@ -273,23 +256,43 @@ function AdminPage() {
                 {submissions.map((sub) => (
                     <Card key={sub.id} className="flex flex-col">
                         <CardHeader>
-                            <div className="flex items-center justify-between">
-                                <CardTitle className="text-base font-semibold leading-tight flex items-center gap-2">
-                                    <User className="h-5 w-5" />
-                                    {sub.name}
-                                </CardTitle>
-                                <Badge variant="secondary" className="capitalize flex gap-2">
-                                   <SubmissionTypeIcon type={sub.submissionType} />
-                                   {sub.submissionType}
-                                </Badge>
+                            <div className="flex items-start justify-between">
+                                 <div className="flex-1">
+                                    <CardTitle className="text-base font-semibold leading-tight flex items-center gap-2">
+                                        <SubmissionTypeIcon type={sub.submissionType} iconName={sub.categorySlug} />
+                                        <span className="capitalize">{sub.submissionType} Submission</span>
+                                    </CardTitle>
+                                    <p className="text-xs text-muted-foreground pt-1">
+                                        from {sub.name}
+                                    </p>
+                                </div>
+                               {sub.submissionType === 'event' && sub.startDate && (
+                                   <Badge variant="destructive" className="flex gap-1.5 items-center">
+                                       <Calendar className="h-3 w-3" />
+                                       {format(sub.startDate.toDate(), 'MMM d')}
+                                    </Badge>
+                               )}
                             </div>
-                            <div className="text-sm text-muted-foreground pt-2 space-y-1">
-                                <a href={`mailto:${sub.email}`} className="flex items-center gap-2 hover:text-primary">
-                                    <Mail className="h-4 w-4" /> {sub.email}
+                            
+                            <div className="text-sm text-muted-foreground pt-3 space-y-2">
+                               {sub.submissionType === 'service' && sub.url && (
+                                   <div className="flex items-center gap-2 truncate">
+                                       <LinkIcon className="h-4 w-4 flex-shrink-0" />
+                                       <a href={sub.url} target="_blank" rel="noopener noreferrer" className="truncate hover:underline">{sub.url}</a>
+                                   </div>
+                               )}
+                               {sub.submissionType === 'shop' && sub.mallId && (
+                                   <div className="flex items-center gap-2">
+                                       <Building className="h-4 w-4 flex-shrink-0" />
+                                       <span>{sub.mallId}</span>
+                                   </div>
+                               )}
+                               <a href={`mailto:${sub.email}`} className="flex items-center gap-2 hover:text-primary">
+                                    <Mail className="h-4 w-4 flex-shrink-0" /> {sub.email}
                                 </a>
                                 {sub.phone && (
                                     <a href={`tel:${sub.phone}`} className="flex items-center gap-2 hover:text-primary">
-                                        <Phone className="h-4 w-4" /> {sub.phone}
+                                        <Phone className="h-4 w-4 flex-shrink-0" /> {sub.phone}
                                     </a>
                                 )}
                             </div>
@@ -321,7 +324,7 @@ function AdminPage() {
                                     </AlertDialogContent>
                                 </AlertDialog>
                                 <Button size="sm" onClick={() => handleSubmissionAction(sub.id, 'resolved')}>
-                                    <Check className="mr-2"/> Mark as Resolved
+                                    <Check className="mr-2"/> Mark as Done
                                 </Button>
                             </div>
                         </CardFooter>
@@ -372,22 +375,22 @@ function AdminPage() {
             <DialogDescription>Review and resolve the issues reported by users for this service.</DialogDescription>
           </DialogHeader>
           <div className="max-h-[60vh] overflow-y-auto pr-4">
-            <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Reason</TableHead>
-                    <TableHead>Reporter</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+            <table className="w-full">
+                <thead className="sticky top-0 bg-background">
+                  <tr>
+                    <th className="text-left p-2">Reason</th>
+                    <th className="text-left p-2">Reporter</th>
+                    <th className="text-left p-2">Date</th>
+                    <th className="text-right p-2">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {viewingReports?.reports.map((report) => (
-                    <TableRow key={report.id}>
-                      <TableCell className='max-w-xs'>{report.reason}</TableCell>
-                      <TableCell>{report.reporterEmail}</TableCell>
-                      <TableCell>{formatDistanceToNow(report.reportedAt.toDate(), { addSuffix: true })}</TableCell>
-                      <TableCell className='text-right'>
+                    <tr key={report.id} className="border-b">
+                      <td className='p-2 max-w-xs'>{report.reason}</td>
+                      <td className="p-2">{report.reporterEmail}</td>
+                      <td className="p-2">{formatDistanceToNow(report.reportedAt.toDate(), { addSuffix: true })}</td>
+                      <td className='p-2 text-right'>
                           <Button
                             size="sm"
                             variant="outline"
@@ -397,20 +400,20 @@ function AdminPage() {
                             <Check className="h-4 w-4 mr-2" />
                             Resolve
                           </Button>
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   ))}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
           </div>
-          <DialogFooter className="justify-between">
+          <DialogFooter className="justify-between pt-4 border-t">
             <Button asChild variant="secondary">
                 <Link href={`/admin/manage-links?edit=${viewingReports?.serviceId}`} target="_blank">
                     <Edit className="mr-2 h-4 w-4" />
                     Manage Service
                 </Link>
             </Button>
-            <DialogClose asChild><Button>Close</Button></DialogClose>
+            <Button onClick={() => setIsReportsDialogOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -420,3 +423,5 @@ function AdminPage() {
 }
 
 export default AdminPage;
+
+    
