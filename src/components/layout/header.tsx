@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, PlusCircle, Search, Shield } from 'lucide-react';
+import { Menu, PlusCircle, Search, Shield, ShoppingBag } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { LinkHubLogo } from '@/components/icons';
@@ -16,7 +16,7 @@ import { LocationSelector } from './location-selector';
 const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/categories', label: 'All Categories' },
-  { href: '/nepal', label: 'For Nepal' },
+  { href: '/find-shops', label: 'Find Shops' },
   { href: '/about', label: 'About' },
 ];
 
@@ -29,18 +29,19 @@ export function Header() {
   const NavLink = ({ href, label }: { href: string; label:string; }) => {
     const isActive =
       href === '/' ? pathname === href : pathname.startsWith(href);
-    const isNepalLink = href === '/nepal';
+    const isFindShopsLink = href === '/find-shops';
     
     return (
       <Link
         href={href}
         className={cn(
           'text-sm font-medium transition-colors hover:text-primary flex items-center gap-2',
-          isActive ? (isNepalLink ? 'text-accent' : 'text-primary') : 'text-muted-foreground',
-          isNepalLink && 'hover:text-accent'
+          isActive ? (isFindShopsLink ? 'text-accent' : 'text-primary') : 'text-muted-foreground',
+          isFindShopsLink && 'hover:text-accent'
         )}
         onClick={() => setSheetOpen(false)}
       >
+        {isFindShopsLink && <ShoppingBag className="h-4 w-4" />}
         {label}
       </Link>
     );

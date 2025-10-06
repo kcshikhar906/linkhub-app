@@ -25,9 +25,9 @@ const popularSearches = [
         state: 'NSW',
     },
     {
-        text: 'Educational Consultancies in Bagmati',
-        categorySlug: 'education-and-training',
-        tag: 'Study abroad consultancies',
+        text: 'Shops in Civil Mall',
+        categorySlug: 'find-shops',
+        tag: 'Civil Mall',
         country: 'NP',
         state: 'BAGMATI',
     },
@@ -40,7 +40,7 @@ const popularSearches = [
     },
     {
         text: 'Community Organizations in Nepal',
-        categorySlug: 'nepal-specific',
+        categorySlug: 'social-and-community-support',
         tag: 'NGOs & nonprofits',
         country: 'NP',
         state: undefined,
@@ -70,14 +70,21 @@ async function getAllCategories() {
 
 async function getPopularSearchCounts() {
     const counts = await Promise.all(popularSearches.map(async (search) => {
+        // The find-shops slug is a special case that links to a different page.
+        // We'll give it a static count for now.
+        if (search.categorySlug === 'find-shops') {
+            return {
+                ...search,
+                count: 100 // Example static count
+            }
+        }
+        
         const conditions: any[] = [
             where('categorySlug', '==', search.categorySlug),
             where('country', '==', search.country),
             where('status', '==', 'published')
         ];
         
-        // Firestore doesn't allow `array-contains` and `in` on the same field, or multiple `array-contains`.
-        // So, we have to be specific.
         if (search.tag) {
             conditions.push(where('tags', 'array-contains', search.tag));
         }
@@ -179,28 +186,31 @@ export default async function Home({ searchParams }: { searchParams: { country?:
                 </h2>
              </div>
              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {popularSearchesWithCounts.map((search, index) => (
-                    <MotionLink
-                        key={search.text}
-                        href={{
-                            pathname: `/categories/${search.categorySlug}`,
-                            query: { country: search.country, state: search.state, tag: search.tag }
-                        }}
-                        className="group block"
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, amount: 0.5 }}
-                        transition={{ delay: index * 0.1, duration: 0.3, ease: 'easeOut' }}
-                    >
-                        <div className="border rounded-lg p-4 h-full flex justify-between items-center transition-all hover:border-primary hover:shadow-md">
-                            <div>
-                                <p className="font-semibold text-card-foreground">{search.text}</p>
-                                <p className="text-sm text-muted-foreground">{search.count} service{search.count !== 1 && 's'}</p>
+                {popularSearchesWithCounts.map((search, index) => {
+                    const href = search.categorySlug === 'find-shops'
+                        ? { pathname: '/find-shops', query: { province: search.state, mall: search.tag } }
+                        : { pathname: `/categories/${search.categorySlug}`, query: { country: search.country, state: search.state, tag: search.tag } };
+
+                    return (
+                        <MotionLink
+                            key={search.text}
+                            href={href}
+                            className="group block"
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true, amount: 0.5 }}
+                            transition={{ delay: index * 0.1, duration: 0.3, ease: 'easeOut' }}
+                        >
+                            <div className="border rounded-lg p-4 h-full flex justify-between items-center transition-all hover:border-primary hover:shadow-md">
+                                <div>
+                                    <p className="font-semibold text-card-foreground">{search.text}</p>
+                                    <p className="text-sm text-muted-foreground">{search.count} {search.categorySlug === 'find-shops' ? 'shops' : 'service'}{search.count !== 1 && 's'}</p>
+                                </div>
+                                <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                             </div>
-                            <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                        </div>
-                    </MotionLink>
-                ))}
+                        </MotionLink>
+                    )
+                })}
              </div>
         </section>
         )}
