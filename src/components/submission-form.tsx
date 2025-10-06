@@ -49,6 +49,9 @@ export function SubmissionForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       submissionType: 'service',
+      name: '',
+      email: '',
+      phone: '',
       notes: '',
     },
   });
