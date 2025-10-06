@@ -22,7 +22,8 @@ export const SHOPS_DATA: { [mallId: string]: ShopData[] } = {
             floor: 'First Floor', 
             logoUrl: 'https://picsum.photos/seed/levis/100/100', 
             description: 'Original and authentic jeanswear, offering a wide range of denim and casual wear.',
-            openingHours: '10:00 AM - 8:00 PM'
+            openingHours: '10:00 AM - 8:00 PM',
+            website: 'https://www.levis.com'
         },
         { 
             name: 'Samsung Plaza', 
@@ -30,6 +31,8 @@ export const SHOPS_DATA: { [mallId: string]: ShopData[] } = {
             floor: 'Second Floor', 
             logoUrl: 'https://picsum.photos/seed/samsung/100/100', 
             description: 'Official retailer for Samsung smartphones, TVs, and home appliances.',
+            phone: '01-4242999',
+            openingHours: '10:00 AM - 8:00 PM',
             website: 'https://samsung.com/np'
         },
         { 
@@ -38,6 +41,7 @@ export const SHOPS_DATA: { [mallId: string]: ShopData[] } = {
             floor: 'Top Floor', 
             logoUrl: 'https://picsum.photos/seed/qfx/100/100', 
             description: 'The best movie watching experience with multiple screens and comfortable seating.',
+            openingHours: '10:00 AM - 11:00 PM',
             website: 'https://www.qfxcinemas.com'
         },
     ],
@@ -50,6 +54,7 @@ export const SHOPS_DATA: { [mallId: string]: ShopData[] } = {
             description: 'World-famous for its Pan Pizza, pastas, and a variety of other Italian-American dishes.',
             phone: '01-4011567',
             openingHours: '11:00 AM - 9:00 PM',
+            website: 'https://www.pizzahut.com.np'
         },
         { 
             name: 'Adidas', 
@@ -57,6 +62,7 @@ export const SHOPS_DATA: { [mallId: string]: ShopData[] } = {
             floor: 'First Floor', 
             logoUrl: 'https://picsum.photos/seed/adidas/100/100', 
             description: 'A global leader in the sporting goods industry, offering a broad portfolio of footwear, apparel and hardware for sport and lifestyle.',
+            openingHours: '10:30 AM - 8:30 PM',
             website: 'https://www.adidas.com'
         },
         { 
@@ -65,13 +71,16 @@ export const SHOPS_DATA: { [mallId: string]: ShopData[] } = {
             floor: 'Second Floor', 
             logoUrl: 'https://picsum.photos/seed/lg/100/100', 
             description: 'Authorized reseller for LG electronics, specializing in OLED TVs and home entertainment systems.',
+            phone: '01-4011600',
+            openingHours: '10:30 AM - 8:30 PM',
         },
         { 
             name: 'Funland', 
             category: 'Entertainment', 
             floor: 'Third Floor', 
             logoUrl: 'https://picsum.photos/seed/funland/100/100', 
-            description: 'A family entertainment center with a variety of arcade games, VR experiences, and activities for all ages.' 
+            description: 'A family entertainment center with a variety of arcade games, VR experiences, and activities for all ages.',
+            openingHours: '11:00 AM - 9:00 PM',
         },
     ],
     'kl-tower': [
@@ -82,6 +91,7 @@ export const SHOPS_DATA: { [mallId: string]: ShopData[] } = {
             logoUrl: 'https://picsum.photos/seed/baskin/100/100', 
             description: 'The world\'s largest chain of ice cream specialty shops, offering 31 flavors.',
             openingHours: '10:00 AM - 9:00 PM',
+            phone: '01-5172123'
         },
         { 
             name: 'Miniso', 
@@ -89,6 +99,8 @@ export const SHOPS_DATA: { [mallId: string]: ShopData[] } = {
             floor: 'First Floor', 
             logoUrl: 'https://picsum.photos/seed/miniso/100/100', 
             description: 'Japanese-inspired lifestyle product retailer, offering high quality household goods, cosmetics and food at affordable prices.',
+            openingHours: '10:00 AM - 8:00 PM',
+            website: 'https://www.miniso.com'
         },
         { 
             name: 'Dell Exclusive Store', 
@@ -96,6 +108,7 @@ export const SHOPS_DATA: { [mallId: string]: ShopData[] } = {
             floor: 'Second Floor', 
             logoUrl: 'https://picsum.photos/seed/dell/100/100', 
             description: 'Laptops, desktops, and accessories from Dell with official warranty and support.',
+            openingHours: '10:00 AM - 8:00 PM',
         },
         { 
             name: 'Big Movies', 
@@ -103,6 +116,7 @@ export const SHOPS_DATA: { [mallId: string]: ShopData[] } = {
             floor: 'Top Floor', 
             logoUrl: 'https://picsum.photos/seed/bigmovies/100/100', 
             description: 'Luxury cinema experience with comfortable seating and premium sound.',
+            openingHours: '10:00 AM - 11:00 PM',
             website: 'https://bigmovies.com.np'
         },
     ],
@@ -114,6 +128,8 @@ export const SHOPS_DATA: { [mallId: string]: ShopData[] } = {
             logoUrl: 'https://picsum.photos/seed/java/100/100', 
             description: 'Specialty coffee from the Himalayas, promoting Nepali coffee culture.',
             openingHours: '8:00 AM - 8:00 PM',
+            phone: '061-535353',
+            website: 'https://himalayanjava.com'
         },
         { 
             name: 'Bata Shoes', 
@@ -121,22 +137,23 @@ export const SHOPS_DATA: { [mallId: string]: ShopData[] } = {
             floor: 'First Floor', 
             logoUrl: 'https://picsum.photos/seed/bata/100/100', 
             description: 'One of the world\'s leading shoemakers, designing stylish and comfortable footwear for the entire family.',
+            openingHours: '10:00 AM - 8:00 PM',
         },
         { 
             name: 'The Face Shop', 
             category: 'Health & Beauty', 
             floor: 'Ground Floor', 
             logoUrl: 'https://picsum.photos/seed/faceshop/100/100', 
-            description: 'A popular Korean beauty brand that offers a wide range of skincare and makeup products made with natural ingredients.'
+            description: 'A popular Korean beauty brand that offers a wide range of skincare and makeup products made with natural ingredients.',
+            openingHours: '10:00 AM - 7:00 PM',
         },
         { 
             name: 'Stationery World', 
             category: 'Books & Stationery', 
             floor: 'Second Floor', 
             logoUrl: 'https://picsum.photos/seed/stationery/100/100', 
-            description: 'A one-stop-shop for all your office and school stationery needs.'
+            description: 'A one-stop-shop for all your office and school stationery needs.',
+            openingHours: '9:30 AM - 7:00 PM',
         },
     ]
 };
-
-    
