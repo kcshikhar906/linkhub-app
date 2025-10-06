@@ -3,10 +3,13 @@
 export interface Shop {
     id: string;
     name: string;
-    category: 'Fashion' | 'Electronics' | 'Food & Beverage' | 'Entertainment' | 'Services' | 'Health & Beauty';
+    category: 'Fashion' | 'Electronics' | 'Food & Beverage' | 'Entertainment' | 'Services' | 'Health & Beauty' | 'Department Store' | 'Books & Stationery';
     floor: string;
     logoUrl: string;
     description: string;
+    website?: string;
+    phone?: string;
+    openingHours?: string;
 }
 
 export interface MallEvent {
@@ -55,3 +58,5 @@ export const MALLS: Mall[] = [
         imageUrl: 'https://picsum.photos/seed/mall4/800/400',
     },
 ];
+
+    
