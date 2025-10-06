@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth } from '@/context/auth-context';
@@ -38,57 +39,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, Check, Trash2, Loader2, PlusCircle, Link as LinkIcon, Layers, FileClock, AlertCircle, Save, Clock, Pencil, Edit, BookText, Info, ChevronsUpDown, FileText, Map, Phone, Mail, MapPin, Wand2 } from 'lucide-react';
+import { ExternalLink, Check, Trash2, Loader2, Link as LinkIcon, Layers, FileClock, AlertCircle, Edit, Clock, Pencil, Mail, Phone, ShoppingBag, Calendar, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState, useMemo, forwardRef } from 'react';
+import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, deleteDoc, updateDoc, query, orderBy, getCountFromServer, where, addDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, deleteDoc, updateDoc, query, orderBy, getCountFromServer, where } from 'firebase/firestore';
 import {
   submissionConverter,
-  type SubmittedLink,
-  serviceConverter,
-  type Service,
+  type SubmittedContact,
   reportConverter,
   type ReportedLink,
-  categoryConverter,
-  type Category,
 } from '@/lib/data';
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-  } from "@/components/ui/command"
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-  } from "@/components/ui/popover"
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
-import { useForm, type SubmitHandler, FormProvider, useFormContext } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { COUNTRIES, type State } from '@/lib/countries';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { cn } from '@/lib/utils';
-import { CATEGORY_TAGS } from '@/lib/category-tags';
-import { summarizeLinkCard } from '@/ai/flows/summarize-link-card';
-import { Skeleton } from '@/components/ui/skeleton';
-
 
 type GroupedReports = {
   [key: string]: {
@@ -98,36 +62,10 @@ type GroupedReports = {
   };
 }
 
-const serviceFormSchema = z.object({
-  title: z.string().min(5),
-  link: z.string().url(),
-  categorySlug: z.string({ required_error: 'Please select a category.' }),
-  description: z.string().min(10),
-  country: z.string({ required_error: 'Please select a country.' }),
-  state: z.string().optional(),
-  verified: z.boolean().optional(),
-  serviceType: z.enum(['guide', 'info'], { required_error: 'You must select a service type.' }),
-  steps: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().email().optional().or(z.literal('')),
-  address: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-}).refine(data => {
-    if (data.serviceType === 'guide') {
-        return !!data.steps && data.steps.length > 10;
-    }
-    return true;
-}, {
-    message: 'Steps are required for a guide.',
-    path: ['steps'],
-});
-
-type ServiceFormValues = z.infer<typeof serviceFormSchema>;
-
 function AdminPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [submissions, setSubmissions] = useState<SubmittedLink[]>([]);
+  const [submissions, setSubmissions] = useState<SubmittedContact[]>([]);
   const [groupedReports, setGroupedReports] = useState<GroupedReports>({});
   const [loadingSubmissions, setLoadingSubmissions] = useState(true);
   const [loadingReports, setLoadingReports] = useState(true);
@@ -135,13 +73,8 @@ function AdminPage() {
   const [loadingStats, setLoadingStats] = useState(true);
   
   // State for dialogs
-  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
-  const [reviewingSubmission, setReviewingSubmission] = useState<SubmittedLink | null>(null);
   const [isReportsDialogOpen, setIsReportsDialogOpen] = useState(false);
   const [viewingReports, setViewingReports] = useState<{serviceTitle: string; serviceId: string; reports: ReportedLink[] } | null>(null);
-
-
-  const [categories, setCategories] = useState<Category[]>([]);
   
   useEffect(() => {
     if (!user) return;
@@ -149,15 +82,6 @@ function AdminPage() {
     setLoadingReports(true);
     setLoadingStats(true);
     
-    const fetchCategories = onSnapshot(
-      query(collection(db, 'categories'), orderBy('name')),
-      (snapshot) => {
-        setCategories(
-          snapshot.docs.map((doc) => categoryConverter.fromFirestore(doc))
-        );
-      }
-    );
-
     const fetchStats = async () => {
         try {
             const servicesCol = collection(db, 'services');
@@ -165,10 +89,12 @@ function AdminPage() {
             const submissionsCol = query(collection(db, 'submissions'), where('status', '==', 'pending'));
             const reportsCol = query(collection(db, 'reports'), where('status', '==', 'pending'));
 
-            const servicesSnapshot = await getCountFromServer(servicesCol);
-            const categoriesSnapshot = await getCountFromServer(categoriesCol);
-            const submissionsSnapshot = await getCountFromServer(submissionsCol);
-            const reportsSnapshot = await getCountFromServer(reportsCol);
+            const [servicesSnapshot, categoriesSnapshot, submissionsSnapshot, reportsSnapshot] = await Promise.all([
+                getCountFromServer(servicesCol),
+                getCountFromServer(categoriesCol),
+                getCountFromServer(submissionsCol),
+                getCountFromServer(reportsCol),
+            ]);
 
             setStats({
                 services: servicesSnapshot.data().count,
@@ -185,14 +111,9 @@ function AdminPage() {
 
     fetchStats();
 
-    const submissionsQuery = query(collection(db, 'submissions'), orderBy('submittedAt', 'desc'));
-    const submissionsUnsubscribe = onSnapshot(submissionsQuery.withConverter(
-      submissionConverter
-    ), (snapshot) => {
-      const pendingSubmissions = snapshot.docs
-        .map((doc) => doc.data())
-        .filter(sub => sub.status === 'pending');
-      setSubmissions(pendingSubmissions);
+    const submissionsQuery = query(collection(db, 'submissions'), where('status', '==', 'pending'), orderBy('submittedAt', 'desc'));
+    const submissionsUnsubscribe = onSnapshot(submissionsQuery.withConverter(submissionConverter), (snapshot) => {
+      setSubmissions(snapshot.docs.map((doc) => doc.data()));
       setLoadingSubmissions(false);
     }, (error) => {
       console.error("Error fetching submissions:", error);
@@ -218,49 +139,33 @@ function AdminPage() {
 
 
     return () => {
-        fetchCategories();
         submissionsUnsubscribe();
         reportsUnsubscribe();
     }
   }, [user, toast]);
   
-  const openReviewDialog = (submission: SubmittedLink) => {
-    setReviewingSubmission(submission);
-    setIsReviewDialogOpen(true);
-  }
-
   const openReportsDialog = (reportGroup: {serviceTitle: string; serviceId: string; reports: ReportedLink[] }) => {
     setViewingReports(reportGroup);
     setIsReportsDialogOpen(true);
   }
-  
-  const handleApproveSuccess = () => {
-    toast({
-        title: 'Link Approved & Published',
-        description: "The submission has been successfully added to the directory.",
-    });
-    setIsReviewDialogOpen(false);
-    setReviewingSubmission(null);
-  }
 
-  const handleReject = async () => {
-     if (!reviewingSubmission) return;
-     try {
-        await deleteDoc(doc(db, 'submissions', reviewingSubmission.id));
+  const handleSubmissionAction = async (id: string, newStatus: 'resolved' | 'delete') => {
+    try {
+        if (newStatus === 'delete') {
+            await deleteDoc(doc(db, 'submissions', id));
+            toast({ title: 'Submission Deleted' });
+        } else {
+            await updateDoc(doc(db, 'submissions', id), { status: 'resolved' });
+            toast({ title: 'Submission Resolved' });
+        }
+    } catch (error) {
+        console.error("Error updating submission: ", error);
         toast({
-          title: 'Link Rejected',
-          description: `The submission for "${reviewingSubmission.title}" has been deleted.`,
-        });
-        setIsReviewDialogOpen(false);
-        setReviewingSubmission(null);
-     } catch (error) {
-         console.error("Error rejecting link: ", error);
-         toast({
-            variant: 'destructive',
-            title: 'Rejection Failed',
-            description: 'There was an error rejecting the link.',
-        });
-     }
+           variant: 'destructive',
+           title: 'Action Failed',
+           description: 'There was an error updating the submission.',
+       });
+    }
   };
 
   const handleResolveReport = async(reportId: string) => {
@@ -278,6 +183,15 @@ function AdminPage() {
             title: 'Error',
             description: 'Could not update the report status.',
         });
+    }
+  }
+
+  const SubmissionTypeIcon = ({ type }: { type: SubmittedContact['submissionType']}) => {
+    switch (type) {
+        case 'service': return <LinkIcon className="h-4 w-4" />;
+        case 'shop': return <ShoppingBag className="h-4 w-4" />;
+        case 'event': return <Calendar className="h-4 w-4" />;
+        default: return null;
     }
   }
 
@@ -321,12 +235,12 @@ function AdminPage() {
         </Card>
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Pending Submissions</CardTitle>
+                <CardTitle className="text-sm font-medium">Pending Inquiries</CardTitle>
                 <FileClock className="h-4 w-4 text-muted-foreground"/>
             </CardHeader>
             <CardContent>
                {loadingStats ? <Loader2 className="animate-spin" /> : <div className="text-2xl font-bold">{stats.submissions}</div>}
-                 <p className="text-xs text-muted-foreground">Awaiting review</p>
+                 <p className="text-xs text-muted-foreground">Awaiting follow-up</p>
             </CardContent>
         </Card>
         <Card>
@@ -343,50 +257,76 @@ function AdminPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Pending Submissions</CardTitle>
+          <CardTitle>Pending Inquiries</CardTitle>
           <CardDescription>
-            {loadingSubmissions ? 'Loading submissions...' : 
+            {loadingSubmissions ? 'Loading inquiries...' : 
                 submissions.length > 0
-              ? 'Review the links submitted by the community.'
-              : 'There are no pending submissions.'}
+              ? 'Contact these users to get more details about their submissions.'
+              : 'There are no pending inquiries.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {loadingSubmissions ? (
             <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground"/></div>
           ) : (
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {submissions.map((link) => {
-                    const category = categories.find(c => c.slug === link.categorySlug);
-                    return (
-                        <Card key={link.id} className="flex flex-col cursor-pointer hover:border-primary hover:shadow-lg transition-all" onClick={() => openReviewDialog(link)}>
-                            <CardHeader>
-                                <CardTitle className="text-base font-semibold leading-tight">{link.title}</CardTitle>
-                                <div className="flex items-center gap-2 pt-1 flex-wrap">
-                                    <Badge variant="secondary">{category?.name || link.categorySlug}</Badge>
-                                    <Badge variant="outline">{link.country}{link.state && ` - ${link.state}`}</Badge>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="flex-grow">
-                                <a href={link.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-sm text-primary hover:underline break-all">
-                                    {link.url} <ExternalLink className="inline h-3 w-3" />
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {submissions.map((sub) => (
+                    <Card key={sub.id} className="flex flex-col">
+                        <CardHeader>
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-base font-semibold leading-tight flex items-center gap-2">
+                                    <User className="h-5 w-5" />
+                                    {sub.name}
+                                </CardTitle>
+                                <Badge variant="secondary" className="capitalize flex gap-2">
+                                   <SubmissionTypeIcon type={sub.submissionType} />
+                                   {sub.submissionType}
+                                </Badge>
+                            </div>
+                            <div className="text-sm text-muted-foreground pt-2 space-y-1">
+                                <a href={`mailto:${sub.email}`} className="flex items-center gap-2 hover:text-primary">
+                                    <Mail className="h-4 w-4" /> {sub.email}
                                 </a>
-                                {link.notes && (
-                                  <p className="text-sm text-muted-foreground mt-2 italic line-clamp-3">
-                                    &quot;{link.notes}&quot;
-                                  </p>
+                                {sub.phone && (
+                                    <a href={`tel:${sub.phone}`} className="flex items-center gap-2 hover:text-primary">
+                                        <Phone className="h-4 w-4" /> {sub.phone}
+                                    </a>
                                 )}
-                            </CardContent>
-                            <CardFooter className="text-xs text-muted-foreground flex items-center justify-between">
-                                <div className="flex items-center gap-1.5">
-                                    <Clock className="h-3 w-3" />
-                                    {link.submittedAt ? formatDistanceToNow(link.submittedAt.toDate(), { addSuffix: true }) : 'Just now'}
-                                </div>
-                                <Badge variant="default" className="bg-amber-500 hover:bg-amber-600">New</Badge>
-                            </CardFooter>
-                        </Card>
-                    );
-                })}
+                            </div>
+                        </CardHeader>
+                        <CardContent className="flex-grow">
+                            <p className="text-sm text-muted-foreground italic line-clamp-3">
+                                &quot;{sub.notes}&quot;
+                            </p>
+                        </CardContent>
+                        <CardFooter className="justify-between">
+                            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                               <Clock className="h-3 w-3" />
+                                {sub.submittedAt ? formatDistanceToNow(sub.submittedAt.toDate(), { addSuffix: true }) : 'Just now'}
+                            </p>
+                            <div className="flex gap-2">
+                                 <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button size="sm" variant="outline"><Trash2/></Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure you want to delete this inquiry?</AlertDialogTitle>
+                                            <AlertDialogDescription>This action is permanent.</AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleSubmissionAction(sub.id, 'delete')}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                                <Button size="sm" onClick={() => handleSubmissionAction(sub.id, 'resolved')}>
+                                    <Check className="mr-2"/> Mark as Resolved
+                                </Button>
+                            </div>
+                        </CardFooter>
+                    </Card>
+                ))}
              </div>
           )}
         </CardContent>
@@ -423,31 +363,6 @@ function AdminPage() {
           }
         </CardContent>
       </Card>
-      
-      {/* Review and Approve Submission Dialog */}
-      <Dialog open={isReviewDialogOpen} onOpenChange={(isOpen) => {
-          if (!isOpen) {
-              setReviewingSubmission(null);
-          }
-          setIsReviewDialogOpen(isOpen);
-      }}>
-           <DialogContent className="sm:max-w-2xl">
-              <DialogHeader>
-                  <DialogTitle>Review Submission</DialogTitle>
-                  <DialogDescription>
-                     Review the details for &quot;{reviewingSubmission?.title}&quot; before publishing.
-                  </DialogDescription>
-              </DialogHeader>
-              {reviewingSubmission && (
-                <ReviewForm 
-                    submission={reviewingSubmission}
-                    categories={categories}
-                    onSuccess={handleApproveSuccess}
-                    onReject={handleReject}
-                />
-              )}
-          </DialogContent>
-      </Dialog>
 
       {/* View Reports Dialog */}
       <Dialog open={isReportsDialogOpen} onOpenChange={setIsReportsDialogOpen}>
@@ -502,354 +417,6 @@ function AdminPage() {
 
     </div>
   );
-}
-
-// Encapsulated Review Form Component
-interface ReviewFormProps {
-    submission: SubmittedLink;
-    categories: Category[];
-    onSuccess: () => void;
-    onReject: () => void;
-}
-
-function ReviewForm({ submission, categories, onSuccess, onReject }: ReviewFormProps) {
-    const { toast } = useToast();
-    const [isLoading, setIsLoading] = useState(false);
-    
-    const form = useForm<ServiceFormValues>({
-        resolver: zodResolver(serviceFormSchema),
-        defaultValues: {
-            title: submission.title,
-            link: submission.url,
-            categorySlug: submission.categorySlug,
-            country: submission.country,
-            state: submission.state,
-            description: submission.notes || '',
-            steps: '', // Steps are now part of 'notes' field and need parsing if logic is added back
-            tags: [], // Tags are now part of 'notes' and need parsing
-            serviceType: 'guide',
-            verified: false,
-        }
-    });
-    
-    const handleApprove: SubmitHandler<ServiceFormValues> = async (data) => {
-        setIsLoading(true);
-
-        const isGuide = data.serviceType === 'guide';
-        
-        const serviceData = {
-            ...data,
-            tags: data.tags || [],
-            steps: isGuide ? data.steps?.split('\\n').filter((step) => step.trim() !== '') : null,
-            phone: !isGuide ? data.phone : null,
-            email: !isGuide ? data.email : null,
-            address: !isGuide ? data.address : null,
-            status: 'published' as const,
-            verified: data.verified || false,
-        };
-
-        try {
-            // Re-run AI summarization to get the icon, since it's not stored in the submission
-            const aiResult = await summarizeLinkCard({ url: data.link, categorySlug: data.categorySlug });
-            
-            const finalData = {
-                ...serviceData,
-                iconDataUri: aiResult.iconDataUri
-            };
-
-            const servicesCol = collection(db, 'services');
-            await addDoc(servicesCol.withConverter(serviceConverter), serviceConverter.toFirestore(finalData));
-            await deleteDoc(doc(db, 'submissions', submission.id));
-            onSuccess();
-        } catch (error) {
-            console.error("Error approving link: ", error);
-            toast({
-                variant: 'destructive',
-                title: 'Approval Failed',
-                description: 'There was an error approving the link. The AI summarizer may have failed.',
-            });
-        }
-        setIsLoading(false);
-    };
-
-    return (
-        <FormProvider {...form}>
-            <form onSubmit={form.handleSubmit(handleApprove)}>
-                <ServiceFormFields categories={categories} />
-                <DialogFooter className="gap-2 sm:gap-0 sm:justify-between pt-4 mt-6 border-t">
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                disabled={isLoading}
-                            >
-                                <Trash2 className="mr-2" />
-                                Reject
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Are you sure you want to reject this submission?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    This action cannot be undone. This will permanently delete the submission.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={onReject}>Yes, Reject</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                    
-                    <div className="flex gap-2">
-                        <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                        <Button type="submit" disabled={isLoading}>
-                            {isLoading ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />}
-                            {isLoading ? 'Publishing...' : 'Approve & Publish'}
-                        </Button>
-                    </div>
-                </DialogFooter>
-            </form>
-        </FormProvider>
-    );
-}
-
-
-// UI Fields for the form
-interface ServiceFormFieldsProps {
-    categories: Category[];
-}
-
-const ServiceFormFields = forwardRef<HTMLDivElement, ServiceFormFieldsProps>(
-  ({ categories }, ref) => {
-    const form = useFormContext<ServiceFormValues>();
-    const [states, setStates] = useState<State[]>([]);
-
-    const selectedCountry = form.watch('country');
-    const serviceType = form.watch('serviceType');
-    const selectedCategorySlug = form.watch('categorySlug');
-    const availableTags = useMemo(() => CATEGORY_TAGS[selectedCategorySlug] || [], [selectedCategorySlug]);
-
-    useEffect(() => {
-        const countryData = COUNTRIES.find((c) => c.code === selectedCountry);
-        setStates(countryData ? countryData.states : []);
-    }, [selectedCountry]);
-    
-    return (
-      <div ref={ref} className="space-y-6 py-6 max-h-[75vh] overflow-y-auto pr-4 -mr-4">
-          {/* Core Details */}
-          <Card>
-              <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg"><FileText className="h-5 w-5"/> Core Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                   <div className="grid gap-3">
-                      <Label htmlFor="title">Service Title</Label>
-                      <Input id="title" type="text" placeholder="e.g., How to apply for a TFN" {...form.register('title')} />
-                      {form.formState.errors.title && <p className="text-sm text-destructive">{form.formState.errors.title.message}</p>}
-                  </div>
-                  <div className="grid gap-3">
-                      <Label htmlFor="link">Official URL</Label>
-                      <Input id="link" type="url" placeholder="https://service.gov.au/..." {...form.register('link')} />
-                      {form.formState.errors.link && <p className="text-sm text-destructive">{form.formState.errors.link.message}</p>}
-                  </div>
-                  <div className="grid gap-3">
-                      <Label htmlFor="description">Short Description</Label>
-                      <Textarea id="description" placeholder="A brief explanation of the service." {...form.register('description')} />
-                      {form.formState.errors.description && <p className="text-sm text-destructive">{form.formState.errors.description.message}</p>}
-                  </div>
-              </CardContent>
-          </Card>
-
-          {/* Categorization */}
-          <Card>
-              <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg"><Map className="h-5 w-5"/> Location & Category</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="grid gap-3">
-                          <Label htmlFor="country">Country</Label>
-                          <Select value={form.watch('country')} onValueChange={(value) => form.setValue('country', value, { shouldValidate: true })}>
-                          <SelectTrigger id="country"><SelectValue placeholder="Select a country" /></SelectTrigger>
-                          <SelectContent>
-                              {COUNTRIES.map((c) => (<SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>))}
-                          </SelectContent>
-                          </Select>
-                          {form.formState.errors.country && <p className="text-sm text-destructive">{form.formState.errors.country.message}</p>}
-                      </div>
-                      <div className="grid gap-3">
-                          <Label htmlFor="state">State / Province</Label>
-                          <Select value={form.watch('state')} onValueChange={(value) => form.setValue('state', value)} disabled={states.length === 0}>
-                          <SelectTrigger id="state"><SelectValue placeholder="Select a state (if applicable)" /></SelectTrigger>
-                          <SelectContent>
-                              {states.map((s) => (<SelectItem key={s.code} value={s.code}>{s.name}</SelectItem>))}
-                          </SelectContent>
-                          </Select>
-                      </div>
-                  </div>
-                  <div className="grid gap-3">
-                      <Label htmlFor="categorySlug">Category</Label>
-                      <Select value={form.watch('categorySlug')} onValueChange={(value) => form.setValue('categorySlug', value, { shouldValidate: true })}>
-                      <SelectTrigger id="categorySlug" aria-label="Select category"><SelectValue placeholder="Select category" /></SelectTrigger>
-                      <SelectContent>
-                          {categories.map((cat) => (<SelectItem key={cat.slug} value={cat.slug}>{cat.name}</SelectItem>))}
-                      </SelectContent>
-                      </Select>
-                      {form.formState.errors.categorySlug && <p className="text-sm text-destructive">{form.formState.errors.categorySlug.message}</p>}
-                  </div>
-                  {availableTags.length > 0 && (
-                      <div className="grid gap-3">
-                          <Label>Tags / Sub-categories</Label>
-                          <MultiSelect
-                              options={availableTags.map(tag => ({ value: tag, label: tag }))}
-                              selected={form.watch('tags') || []}
-                              onChange={(selected) => form.setValue('tags', selected)}
-                              placeholder="Select tags..."
-                           />
-                           <p className="text-xs text-muted-foreground">Select one or more tags to help users filter.</p>
-                      </div>
-                  )}
-              </CardContent>
-          </Card>
-          
-          {/* Service Content */}
-          <Card>
-              <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg"><BookText className="h-5 w-5"/> Service Content</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                   <div className="grid gap-3">
-                      <Label>Service Type</Label>
-                       <ToggleGroup
-                          type="single"
-                          value={serviceType}
-                          onValueChange={(value: 'guide' | 'info') => {
-                              if (value) form.setValue('serviceType', value, { shouldValidate: true })
-                          }}
-                          className="grid grid-cols-2"
-                          >
-                          <ToggleGroupItem value="guide" aria-label="Select guide type">
-                              <BookText className="mr-2 h-4 w-4" />
-                              Guide
-                          </ToggleGroupItem>
-                          <ToggleGroupItem value="info" aria-label="Select info type">
-                              <Info className="mr-2 h-4 w-4" />
-                              Info
-                          </ToggleGroupItem>
-                      </ToggleGroup>
-                      {form.formState.errors.serviceType && <p className="text-sm text-destructive">{form.formState.errors.serviceType.message}</p>}
-                  </div>
-                  
-                  {serviceType === 'guide' && (
-                      <div className="grid gap-3">
-                          <Label htmlFor="steps">Steps (one per line)</Label>
-                          <Textarea id="steps" rows={5} placeholder="Step 1...\\nStep 2...\\nStep 3..." {...form.register('steps')} />
-                          {form.formState.errors.steps && <p className="text-sm text-destructive">{form.formState.errors.steps.message}</p>}
-                      </div>
-                  )}
-                  
-                  {serviceType === 'info' && (
-                      <div className="space-y-4 rounded-md border p-4">
-                          <h4 className="font-medium text-sm">Contact Information</h4>
-                           <div className="grid gap-3">
-                              <Label htmlFor="phone">Phone Number</Label>
-                               <div className="relative">
-                                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                  <Input id="phone" type="tel" placeholder="e.g., (02) 1234 5678" {...form.register('phone')} className="pl-10" />
-                               </div>
-                          </div>
-                           <div className="grid gap-3">
-                              <Label htmlFor="email">Email Address</Label>
-                               <div className="relative">
-                                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                  <Input id="email" type="email" placeholder="e.g., contact@business.com.au" {...form.register('email')} className="pl-10"/>
-                               </div>
-                              {form.formState.errors.email && <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>}
-                          </div>
-                           <div className="grid gap-3">
-                              <Label htmlFor="address">Physical Address</Label>
-                               <div className="relative">
-                                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                  <Input id="address" type="text" placeholder="e.g., 123 Example St, Sydney NSW 2000" {...form.register('address')} className="pl-10" />
-                              </div>
-                          </div>
-                      </div>
-                  )}
-              </CardContent>
-          </Card>
-          
-          <div className="flex items-center space-x-2 pt-2">
-              <Checkbox id="verified" checked={form.watch('verified')} onCheckedChange={(checked) => form.setValue('verified', !!checked)} />
-              <Label htmlFor="verified" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Mark as Verified
-              </Label>
-          </div>
-      </div>
-    );
-  }
-);
-ServiceFormFields.displayName = "ServiceFormFields";
-
-interface MultiSelectProps {
-    options: { value: string; label: string }[];
-    selected: string[];
-    onChange: (selected: string[]) => void;
-    className?: string;
-    placeholder?: string;
-}
-
-function MultiSelect({ options, selected, onChange, className, placeholder = "Select..." }: MultiSelectProps) {
-    const [open, setOpen] = useState(false)
-
-    return (
-        <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className="w-full justify-between"
-          >
-            <span className="truncate">
-                {selected.length === 0 && placeholder}
-                {selected.length === 1 && selected[0]}
-                {selected.length > 1 && `${selected.length} selected`}
-            </span>
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-          <Command>
-            <CommandInput placeholder="Search tags..." />
-            <CommandEmpty>No tag found.</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
-                  key={option.value}
-                  value={option.value}
-                  onSelect={(currentValue) => {
-                    const newSelected = selected.includes(currentValue)
-                      ? selected.filter((item) => item !== currentValue)
-                      : [...selected, currentValue]
-                    onChange(newSelected)
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      selected.includes(option.value) ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {option.label}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </Command>
-        </PopoverContent>
-      </Popover>
-    )
 }
 
 export default AdminPage;

@@ -30,6 +30,8 @@ import {
   Server,
   Wrench,
   Tractor,
+  ShoppingBag,
+  Calendar,
 } from 'lucide-react';
 import { Timestamp, type DocumentData, type QueryDocumentSnapshot, type ServerTimestamp } from 'firebase/firestore';
 
@@ -61,15 +63,14 @@ export type Category = {
 };
 
 
-export type SubmittedLink = {
+export type SubmittedContact = {
     id: string;
-    title: string;
-    url: string;
-    categorySlug: string;
-    notes?: string;
-    country: string;
-    state?: string;
-    status: 'pending' | 'approved' | 'rejected';
+    name: string;
+    email: string;
+    phone?: string;
+    submissionType: 'service' | 'shop' | 'event';
+    notes: string;
+    status: 'pending' | 'resolved';
     submittedAt: Timestamp | ServerTimestamp;
 }
 
@@ -109,6 +110,9 @@ export const ICONS: { [key: string]: LucideIcon } = {
     Server, // Technology & Digital Services
     Wrench, // Utilities & Infrastructure
     Tractor, // Agriculture & Rural Development
+    ShoppingBag, // For submission type
+    Calendar, // For submission type
+    Link: Briefcase, // For submission type 'service'
 
     // Old (kept for compatibility)
     Landmark,
@@ -192,29 +196,22 @@ export const categoryConverter = {
 };
 
 export const submissionConverter = {
-    fromFirestore: (snapshot: QueryDocumentSnapshot): SubmittedLink => {
+    fromFirestore: (snapshot: QueryDocumentSnapshot): SubmittedContact => {
         const data = snapshot.data();
         const submittedAt = data.submittedAt instanceof Timestamp ? data.submittedAt : new Timestamp(0,0);
         return {
             id: snapshot.id,
-            title: data.title,
-            url: data.url,
-            categorySlug: data.categorySlug,
+            name: data.name,
+            email: data.email,
+            phone: data.phone,
+            submissionType: data.submissionType,
             notes: data.notes,
-            country: data.country,
-            state: data.state,
             status: data.status || 'pending',
             submittedAt: submittedAt,
         };
     },
-    toFirestore: (submission: Partial<Omit<SubmittedLink, 'id'>>): DocumentData => {
-        const data: DocumentData = {
-           ...submission
-        };
-        if (data.status === undefined) {
-            data.status = 'pending';
-        }
-        return data;
+    toFirestore: (submission: Omit<SubmittedContact, 'id'>): DocumentData => {
+        return { ...submission };
     }
 }
 
@@ -241,5 +238,3 @@ export const reportConverter = {
         };
     }
 }
-
-    
