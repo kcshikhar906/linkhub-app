@@ -8,13 +8,12 @@ import { Footer } from '@/components/layout/footer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { Building, Calendar, MapPin, Search, ShoppingBag } from 'lucide-react';
 import { COUNTRIES } from '@/lib/countries';
 import { MALLS, type Mall } from '@/lib/malls';
-import { SHOPS } from '@/lib/shops';
+import { SHOPS, type ShopWithMall } from '@/lib/shops';
 import { EVENTS } from '@/lib/events';
 import { motion } from 'framer-motion';
 
@@ -27,47 +26,68 @@ function FindShopsPageComponent() {
     const provinces = nepalData?.states || [];
 
     // Component state
-    const [selectedProvince, setSelectedProvince] = useState(searchParams.get('province') || provinces[0]?.code || '');
-    const [selectedMall, setSelectedMall] = useState(searchParams.get('mall') || '');
+    const [selectedProvince, setSelectedProvince] = useState(searchParams.get('province') || 'ALL');
+    const [selectedMall, setSelectedMall] = useState(searchParams.get('mall') || 'ALL');
     const [searchTerm, setSearchTerm] = useState('');
 
     const mallsInProvince = useMemo(() => {
+        if (selectedProvince === 'ALL') return [];
         return MALLS.filter(mall => mall.province === selectedProvince);
     }, [selectedProvince]);
 
+    const filteredShops = useMemo(() => {
+        let shops: ShopWithMall[] = SHOPS;
+
+        if (selectedProvince !== 'ALL') {
+            shops = shops.filter(shop => shop.province === selectedProvince);
+        }
+
+        if (selectedMall !== 'ALL') {
+            shops = shops.filter(shop => shop.mallId === selectedMall);
+        }
+        
+        if (searchTerm) {
+            shops = shops.filter(shop => 
+                shop.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                shop.category.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+
+        return shops;
+    }, [selectedProvince, selectedMall, searchTerm]);
+    
     const mallDetails = useMemo(() => {
+        if (selectedMall === 'ALL') return null;
         return MALLS.find(mall => mall.id === selectedMall);
     }, [selectedMall]);
 
-    const shopsInMall = useMemo(() => {
-        if (!selectedMall) return [];
-        const allShops = SHOPS[selectedMall] || [];
-        if (!searchTerm) return allShops;
-        return allShops.filter(shop => 
-            shop.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            shop.category.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [selectedMall, searchTerm]);
-
     const eventsInMall = useMemo(() => {
-        if (!selectedMall) return [];
+        if (selectedMall === 'ALL') return [];
         return EVENTS[selectedMall] || [];
     }, [selectedMall]);
 
     const handleProvinceChange = (provinceCode: string) => {
         setSelectedProvince(provinceCode);
-        setSelectedMall(''); // Reset mall selection
+        setSelectedMall('ALL'); // Reset mall selection
         const params = new URLSearchParams();
-        params.set('province', provinceCode);
+        if (provinceCode !== 'ALL') {
+            params.set('province', provinceCode);
+        }
         router.push(`?${params.toString()}`);
     };
     
     const handleMallChange = (mallId: string) => {
         setSelectedMall(mallId);
         const params = new URLSearchParams(searchParams.toString());
-        params.set('mall', mallId);
+         if (mallId !== 'ALL') {
+            params.set('mall', mallId);
+        } else {
+            params.delete('mall');
+        }
         router.push(`?${params.toString()}`);
     };
+    
+    const currentViewIsMallSpecific = selectedMall !== 'ALL';
 
     return (
         <>
@@ -91,15 +111,17 @@ function FindShopsPageComponent() {
                                     <SelectValue placeholder="Select a Province" />
                                 </SelectTrigger>
                                 <SelectContent>
+                                    <SelectItem value="ALL">All Provinces</SelectItem>
                                     {provinces.map(p => <SelectItem key={p.code} value={p.code}>{p.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
 
-                             <Select value={selectedMall} onValueChange={handleMallChange} disabled={mallsInProvince.length === 0}>
+                             <Select value={selectedMall} onValueChange={handleMallChange} disabled={selectedProvince === 'ALL'}>
                                 <SelectTrigger className="w-full md:w-[240px]">
                                     <SelectValue placeholder="Select a Mall" />
                                 </SelectTrigger>
                                 <SelectContent>
+                                     <SelectItem value="ALL">All Malls</SelectItem>
                                     {mallsInProvince.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
@@ -113,53 +135,56 @@ function FindShopsPageComponent() {
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     aria-label="Search shops"
-                                    disabled={!selectedMall}
                                 />
                             </div>
                         </CardContent>
                     </Card>
 
-                    {!selectedMall ? (
-                        <div className="text-center py-16 bg-card rounded-lg shadow-sm flex flex-col items-center justify-center">
-                            <Building className="h-16 w-16 text-muted-foreground mb-4" />
-                            <p className="text-lg font-medium">Please select a mall to see the directory.</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            {/* Shops List (Left/Main Column) */}
-                            <div className="lg:col-span-2">
-                                <h2 className="text-2xl font-bold font-headline mb-4">{mallDetails?.name} Directory</h2>
-                                {shopsInMall.length > 0 ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {shopsInMall.map((shop, index) => (
-                                            <motion.div key={shop.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}>
-                                                <Card className="h-full">
-                                                    <CardHeader className="flex flex-row items-start gap-4">
-                                                        <Image src={shop.logoUrl} alt={`${shop.name} logo`} width={60} height={60} className="rounded-md border" />
-                                                        <div className="flex-1">
-                                                            <CardTitle className="text-lg">{shop.name}</CardTitle>
-                                                            <div className="flex items-center gap-2 mt-1">
-                                                                <Badge variant="secondary">{shop.category}</Badge>
-                                                                <Badge variant="outline">{shop.floor}</Badge>
-                                                            </div>
-                                                        </div>
-                                                    </CardHeader>
-                                                    <CardContent>
-                                                        <p className="text-sm text-muted-foreground">{shop.description}</p>
-                                                    </CardContent>
-                                                </Card>
-                                            </motion.div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                     <div className="text-center py-16 bg-background rounded-lg border-dashed border-2 flex flex-col items-center justify-center">
-                                        <Search className="h-12 w-12 text-muted-foreground mb-4" />
-                                        <p className="text-muted-foreground">No shops found matching your search.</p>
-                                    </div>
-                                )}
-                            </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Shops List (Main Column) */}
+                        <div className={currentViewIsMallSpecific ? "lg:col-span-2" : "lg:col-span-3"}>
+                             {currentViewIsMallSpecific && mallDetails && (
+                                 <h2 className="text-2xl font-bold font-headline mb-4">{mallDetails.name} Directory</h2>
+                             )}
+                             {!currentViewIsMallSpecific && (
+                                 <h2 className="text-2xl font-bold font-headline mb-4">
+                                     {selectedProvince === 'ALL' ? 'All Shops in Nepal' : `Shops in ${provinces.find(p => p.code === selectedProvince)?.name}`}
+                                 </h2>
+                             )}
 
-                            {/* Mall Info & Events (Right/Side Column) */}
+                            {filteredShops.length > 0 ? (
+                                <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6", !currentViewIsMallSpecific && "lg:grid-cols-3")}>
+                                    {filteredShops.map((shop, index) => (
+                                        <motion.div key={shop.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}>
+                                            <Card className="h-full">
+                                                <CardHeader className="flex flex-row items-start gap-4">
+                                                    <Image src={shop.logoUrl} alt={`${shop.name} logo`} width={60} height={60} className="rounded-md border" />
+                                                    <div className="flex-1">
+                                                        <CardTitle className="text-lg">{shop.name}</CardTitle>
+                                                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                                            <Badge variant="secondary">{shop.category}</Badge>
+                                                            <Badge variant="outline">{shop.floor}</Badge>
+                                                            {!currentViewIsMallSpecific && <Badge variant="outline">{shop.mallName}</Badge>}
+                                                        </div>
+                                                    </div>
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <p className="text-sm text-muted-foreground">{shop.description}</p>
+                                                </CardContent>
+                                            </Card>
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            ) : (
+                                 <div className="text-center py-16 bg-background rounded-lg border-dashed border-2 flex flex-col items-center justify-center">
+                                    <Search className="h-12 w-12 text-muted-foreground mb-4" />
+                                    <p className="text-muted-foreground">No shops found matching your criteria.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Mall Info & Events (Side Column) - Only shows when a mall is selected */}
+                        {currentViewIsMallSpecific && mallDetails && (
                             <div className="space-y-8">
                                 <Card>
                                     <CardHeader>
@@ -201,8 +226,8 @@ function FindShopsPageComponent() {
                                     </CardContent>
                                 </Card>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </main>
             <Footer />
