@@ -16,6 +16,7 @@ import { MALLS, type Mall } from '@/lib/malls';
 import { SHOPS, type ShopWithMall } from '@/lib/shops';
 import { EVENTS } from '@/lib/events';
 import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 function FindShopsPageComponent() {
     const router = useRouter();
