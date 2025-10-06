@@ -70,6 +70,20 @@ const formSchema = z.discriminatedUnion('submissionType', [
 
 type FormValues = z.infer<typeof formSchema>;
 
+const initialValues = {
+  submissionType: 'service' as const,
+  name: '',
+  email: '',
+  phone: '',
+  url: '',
+  notes: '',
+  shopName: '',
+  eventName: '',
+  categorySlug: '',
+  eventDate: undefined,
+};
+
+
 export function SubmissionForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -88,16 +102,10 @@ export function SubmissionForm() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      submissionType: 'service',
-      name: '',
-      email: '',
-      phone: '',
-      url: '',
-      notes: '',
-    },
+    defaultValues: initialValues,
   });
 
+  const watchedSubmissionType = form.watch('submissionType');
   const watchedEventDate = form.watch('submissionType') === 'event' ? form.watch('eventDate') : undefined;
   const isEventDateSoon = watchedEventDate ? isBefore(watchedEventDate, startOfToday()) : false;
 
@@ -112,7 +120,7 @@ export function SubmissionForm() {
 
   const handleTypeSelect = (type: 'service' | 'shop' | 'event') => {
     setSubmissionType(type);
-    form.reset(); 
+    form.reset(initialValues); 
     form.setValue('submissionType', type);
     handleNext();
   }
@@ -143,13 +151,7 @@ export function SubmissionForm() {
         await addDoc(submissionsCol, submissionData);
         
         toast({ title: 'Submission Received!', description: "Thank you for your contribution. We will review it shortly."});
-        form.reset({
-          submissionType: 'service',
-          name: '',
-          email: '',
-          phone: '',
-          notes: '',
-        });
+        form.reset(initialValues);
         setCurrentStep(0);
     } catch (error) {
         console.error("Error submitting form: ", error);
@@ -229,7 +231,7 @@ export function SubmissionForm() {
                         
                         <hr/>
 
-                        {submissionType === 'service' && (
+                        {watchedSubmissionType === 'service' && (
                              <div className="space-y-4">
                                 <FormField control={form.control} name="url" render={({ field }) => (
                                     <FormItem>
@@ -255,7 +257,7 @@ export function SubmissionForm() {
                              </div>
                         )}
 
-                        {submissionType === 'shop' && (
+                        {watchedSubmissionType === 'shop' && (
                             <div className="space-y-4">
                                 <FormField control={form.control} name="shopName" render={({ field }) => (
                                     <FormItem>
@@ -267,7 +269,7 @@ export function SubmissionForm() {
                             </div>
                         )}
 
-                        {submissionType === 'event' && (
+                        {watchedSubmissionType === 'event' && (
                             <div className="space-y-4">
                                 <FormField control={form.control} name="eventName" render={({ field }) => (
                                     <FormItem>
