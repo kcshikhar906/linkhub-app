@@ -169,9 +169,9 @@ function AdminPage() {
     }
   }
 
-  const SubmissionTypeIcon = ({ type, iconName }: { type: SubmittedContact['submissionType'], iconName?: string }) => {
+  const SubmissionTypeIcon = ({ type }: { type: SubmittedContact['submissionType']}) => {
     switch (type) {
-        case 'service': return iconName ? getIcon(iconName)({ className: 'h-4 w-4'}) : <LinkIcon className="h-4 w-4" />;
+        case 'service': return <LinkIcon className="h-4 w-4" />;
         case 'shop': return <ShoppingBag className="h-4 w-4" />;
         case 'event': return <Calendar className="h-4 w-4" />;
         default: return <Home className="h-4 w-4" />;
@@ -259,7 +259,7 @@ function AdminPage() {
                             <div className="flex items-start justify-between">
                                  <div className="flex-1">
                                     <CardTitle className="text-base font-semibold leading-tight flex items-center gap-2">
-                                        <SubmissionTypeIcon type={sub.submissionType} iconName={sub.categorySlug} />
+                                        <SubmissionTypeIcon type={sub.submissionType} />
                                         <span className="capitalize">{sub.submissionType} Submission</span>
                                     </CardTitle>
                                     <p className="text-xs text-muted-foreground pt-1">
@@ -281,10 +281,16 @@ function AdminPage() {
                                        <a href={sub.url} target="_blank" rel="noopener noreferrer" className="truncate hover:underline">{sub.url}</a>
                                    </div>
                                )}
-                               {sub.submissionType === 'shop' && sub.mallId && (
+                               {sub.submissionType === 'shop' && sub.shopName && (
                                    <div className="flex items-center gap-2">
-                                       <Building className="h-4 w-4 flex-shrink-0" />
-                                       <span>{sub.mallId}</span>
+                                       <ShoppingBag className="h-4 w-4 flex-shrink-0" />
+                                       <span>{sub.shopName}</span>
+                                   </div>
+                               )}
+                               {sub.submissionType === 'event' && sub.eventName && (
+                                   <div className="flex items-center gap-2">
+                                       <Calendar className="h-4 w-4 flex-shrink-0" />
+                                       <span>{sub.eventName}</span>
                                    </div>
                                )}
                                <a href={`mailto:${sub.email}`} className="flex items-center gap-2 hover:text-primary">
@@ -423,5 +429,3 @@ function AdminPage() {
 }
 
 export default AdminPage;
-
-    

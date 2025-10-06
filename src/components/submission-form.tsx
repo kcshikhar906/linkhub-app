@@ -26,17 +26,16 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Link, ShoppingBag, Calendar, User, Mail, Phone, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Loader2, Link, ShoppingBag, Calendar, ArrowLeft } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { type Category, categoryConverter } from '@/lib/data';
-import { MALLS } from '@/lib/malls';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, isBefore, startOfToday } from 'date-fns';
 import { Calendar as CalendarPicker } from './ui/calendar';
 
 
@@ -56,7 +55,6 @@ const formSchema = z.discriminatedUnion('submissionType', [
         email: z.string().email("Please enter a valid email address."),
         phone: z.string().optional(),
         shopName: z.string().min(2, "Please enter the shop's name."),
-        mallId: z.string({ required_error: "Please select a mall."}),
         notes: z.string().min(10, "Please provide a brief description of the shop."),
     }),
     z.object({
@@ -65,8 +63,7 @@ const formSchema = z.discriminatedUnion('submissionType', [
         email: z.string().email("Please enter a valid email address."),
         phone: z.string().optional(),
         eventName: z.string().min(3, "Please enter the event's name."),
-        mallId: z.string({ required_error: "Please select a mall."}),
-        eventDates: z.object({ from: z.date(), to: z.date() }, { required_error: "Please select the event dates."}),
+        eventDate: z.date({ required_error: "Please select the event date."}),
         notes: z.string().min(10, "Please provide a brief description of the event."),
     })
 ]);
@@ -101,8 +98,11 @@ export function SubmissionForm() {
     },
   });
 
+  const watchedEventDate = form.watch('submissionType') === 'event' ? form.watch('eventDate') : undefined;
+  const isEventDateSoon = watchedEventDate ? isBefore(watchedEventDate, startOfToday()) : false;
+
+
   const handleNext = async () => {
-    // Only validate the fields relevant to the current step if needed in a more complex form
     setCurrentStep(1);
   };
 
@@ -112,7 +112,7 @@ export function SubmissionForm() {
 
   const handleTypeSelect = (type: 'service' | 'shop' | 'event') => {
     setSubmissionType(type);
-    form.reset(); // Reset form when type changes to clear irrelevant fields and errors
+    form.reset(); 
     form.setValue('submissionType', type);
     handleNext();
   }
@@ -133,9 +133,9 @@ export function SubmissionForm() {
     if (data.submissionType === 'service') {
         submissionData = { ...submissionData, url: data.url, categorySlug: data.categorySlug };
     } else if (data.submissionType === 'shop') {
-        submissionData = { ...submissionData, shopName: data.shopName, mallId: data.mallId };
+        submissionData = { ...submissionData, shopName: data.shopName };
     } else if (data.submissionType === 'event') {
-        submissionData = { ...submissionData, eventName: data.eventName, mallId: data.mallId, startDate: data.eventDates.from, endDate: data.eventDates.to };
+        submissionData = { ...submissionData, eventName: data.eventName, startDate: data.eventDate };
     }
     
     try {
@@ -148,7 +148,6 @@ export function SubmissionForm() {
           name: '',
           email: '',
           phone: '',
-          url: '',
           notes: '',
         });
         setCurrentStep(0);
@@ -162,8 +161,14 @@ export function SubmissionForm() {
 
   const placeholderText = {
     service: "Please include any extra details, like if this link replaces an old one or why it's important.",
-    shop: "e.g., Sells organic coffee and has a nice seating area on the second floor.",
-    event: "e.g., This is a free concert series happening every Friday in the main courtyard."
+    shop: "e.g., Sells organic coffee and has a nice seating area. Located in Civil Mall.",
+    event: "e.g., This is a free concert series happening every Friday in the main courtyard of City Centre."
+  }[submissionType];
+
+  const submitButtonText = {
+    service: 'Submit Contribution',
+    shop: 'Request Contact',
+    event: 'Submit Event for Review'
   }[submissionType];
   
   return (
@@ -259,20 +264,6 @@ export function SubmissionForm() {
                                         <FormMessage />
                                     </FormItem>
                                 )}/>
-                                <FormField control={form.control} name="mallId" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Mall</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger><SelectValue placeholder="Select a mall" /></SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {MALLS.map(mall => <SelectItem key={mall.id} value={mall.id}>{mall.name}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}/>
                             </div>
                         )}
 
@@ -285,69 +276,52 @@ export function SubmissionForm() {
                                         <FormMessage />
                                     </FormItem>
                                 )}/>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <FormField control={form.control} name="mallId" render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Mall</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormField
+                                    control={form.control}
+                                    name="eventDate"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-col">
+                                            <FormLabel>Event Date</FormLabel>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
                                                 <FormControl>
-                                                    <SelectTrigger><SelectValue placeholder="Select a mall" /></SelectTrigger>
+                                                    <Button
+                                                    variant={"outline"}
+                                                    className={cn(
+                                                        "pl-3 text-left font-normal",
+                                                        !field.value && "text-muted-foreground"
+                                                    )}
+                                                    >
+                                                    {field.value ? (
+                                                        format(field.value, "PPP")
+                                                    ) : (
+                                                        <span>Pick a date</span>
+                                                    )}
+                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                    </Button>
                                                 </FormControl>
-                                                <SelectContent>
-                                                    {MALLS.map(mall => <SelectItem key={mall.id} value={mall.id}>{mall.name}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0" align="start">
+                                                <CalendarPicker
+                                                    mode="single"
+                                                    selected={field.value}
+                                                    onSelect={field.onChange}
+                                                    disabled={(date) =>
+                                                        date < new Date("1900-01-01")
+                                                    }
+                                                    initialFocus
+                                                />
+                                                </PopoverContent>
+                                            </Popover>
+                                            <FormDescription>
+                                                {isEventDateSoon
+                                                    ? "This date is in the past. Please select a future date."
+                                                    : "We will review your submission and email you for more details before it is published."}
+                                            </FormDescription>
                                             <FormMessage />
                                         </FormItem>
-                                    )}/>
-                                    <FormField
-                                        control={form.control}
-                                        name="eventDates"
-                                        render={({ field }) => (
-                                            <FormItem className="flex flex-col pt-2">
-                                                <FormLabel>Event Dates</FormLabel>
-                                                <Popover>
-                                                    <PopoverTrigger asChild>
-                                                    <FormControl>
-                                                        <Button
-                                                        variant={"outline"}
-                                                        className={cn(
-                                                            "pl-3 text-left font-normal",
-                                                            !field.value && "text-muted-foreground"
-                                                        )}
-                                                        >
-                                                        {field.value?.from ? (
-                                                            field.value.to ? (
-                                                            <>
-                                                                {format(field.value.from, "LLL dd, y")} -{" "}
-                                                                {format(field.value.to, "LLL dd, y")}
-                                                            </>
-                                                            ) : (
-                                                            format(field.value.from, "LLL dd, y")
-                                                            )
-                                                        ) : (
-                                                            <span>Pick a date range</span>
-                                                        )}
-                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                        </Button>
-                                                    </FormControl>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent className="w-auto p-0" align="start">
-                                                    <CalendarPicker
-                                                        initialFocus
-                                                        mode="range"
-                                                        defaultMonth={field.value?.from}
-                                                        selected={{ from: field.value?.from, to: field.value?.to }}
-                                                        onSelect={field.onChange}
-                                                        numberOfMonths={2}
-                                                    />
-                                                    </PopoverContent>
-                                                </Popover>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
+                                    )}
+                                />
                             </div>
                         )}
                         
@@ -355,7 +329,7 @@ export function SubmissionForm() {
                             <FormItem>
                                 <FormLabel>Notes / Description</FormLabel>
                                 <FormControl>
-                                    <Textarea rows={4} placeholder={placeholderText} {...field} disabled={isSubmitting} />
+                                    <Textarea rows={4} placeholder={placeholderText} {...field} value={field.value || ''} disabled={isSubmitting} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -367,7 +341,7 @@ export function SubmissionForm() {
                         </Button>
                         <Button type="submit" disabled={isSubmitting}>
                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {isSubmitting ? 'Submitting...' : 'Submit Contribution'}
+                        {isSubmitting ? 'Submitting...' : submitButtonText}
                         </Button>
                     </CardFooter>
                  </>
