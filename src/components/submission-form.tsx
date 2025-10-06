@@ -28,7 +28,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Link, ShoppingBag, Calendar, User, Mail, Phone, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { type Category, categoryConverter } from '@/lib/data';
 import { MALLS } from '@/lib/malls';
@@ -143,7 +143,14 @@ export function SubmissionForm() {
         await addDoc(submissionsCol, submissionData);
         
         toast({ title: 'Submission Received!', description: "Thank you for your contribution. We will review it shortly."});
-        form.reset();
+        form.reset({
+          submissionType: 'service',
+          name: '',
+          email: '',
+          phone: '',
+          url: '',
+          notes: '',
+        });
         setCurrentStep(0);
     } catch (error) {
         console.error("Error submitting form: ", error);
@@ -152,6 +159,12 @@ export function SubmissionForm() {
 
     setIsSubmitting(false);
   };
+
+  const placeholderText = {
+    service: "Please include any extra details, like if this link replaces an old one or why it's important.",
+    shop: "e.g., Sells organic coffee and has a nice seating area on the second floor.",
+    event: "e.g., This is a free concert series happening every Friday in the main courtyard."
+  }[submissionType];
   
   return (
     <Form {...form}>
@@ -342,7 +355,7 @@ export function SubmissionForm() {
                             <FormItem>
                                 <FormLabel>Notes / Description</FormLabel>
                                 <FormControl>
-                                    <Textarea rows={4} placeholder="Tell us more about your submission..." {...field} disabled={isSubmitting} />
+                                    <Textarea rows={4} placeholder={placeholderText} {...field} disabled={isSubmitting} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
