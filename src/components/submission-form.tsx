@@ -62,7 +62,7 @@ const formSchema = z.discriminatedUnion('submissionType', [
     z.object({
         submissionType: z.literal('event'),
         name: z.string().min(2, "Please enter your name."),
-        email: zstring().email("Please enter a valid email address."),
+        email: z.string().email("Please enter a valid email address."),
         phone: z.string().optional(),
         eventName: z.string().min(3, "Please enter the event's name."),
         mallId: z.string({ required_error: "Please select a mall."}),
@@ -204,7 +204,7 @@ export function SubmissionForm() {
                         <FormField control={form.control} name="phone" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Phone Number (Optional)</FormLabel>
-                                <FormControl><Input type="tel" placeholder="Your contact number" {...field} disabled={isSubmitting} /></FormControl>
+                                <FormControl><Input type="tel" placeholder="Your contact number" {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}/>
@@ -366,5 +366,3 @@ export function SubmissionForm() {
     </Form>
   );
 }
-
-    
