@@ -41,6 +41,12 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+const placeholderMessages = {
+    service: "e.g., 'There's a great link for renewing a driver's license in Victoria that isn't on your site...'",
+    shop: "e.g., 'I want to add the new Nike store that opened in Civil Mall...'",
+    event: "e.g., 'There's a food festival happening at KL Tower next week that you should list...'",
+}
+
 export function SubmissionForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
@@ -55,6 +61,8 @@ export function SubmissionForm() {
       notes: '',
     },
   });
+
+  const submissionType = form.watch('submissionType');
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setIsSubmitting(true);
@@ -152,7 +160,7 @@ export function SubmissionForm() {
                 <FormItem>
                     <FormLabel>Message</FormLabel>
                     <FormControl>
-                        <Textarea rows={5} placeholder="Tell us a bit about what you want to list. e.g., 'I want to add the new Nike store in Civil Mall' or 'There's a great link for renewing a driver's license...'" {...field} disabled={isSubmitting} />
+                        <Textarea rows={5} placeholder={placeholderMessages[submissionType]} {...field} disabled={isSubmitting} />
                     </FormControl>
                     <FormDescription>This helps us prepare for our follow-up email.</FormDescription>
                     <FormMessage />
