@@ -48,11 +48,12 @@ function ShopCard({ shop, onSelect, isSelected }: { shop: ShopWithMall, onSelect
     )
 }
 
-function ShopDetails({ shop, allShops, onSelectShop }: { shop: ShopWithMall, allShops: ShopWithMall[], onSelectShop: (shop: ShopWithMall) => void }) {
+function ShopDetails({ shop, allShops, onSelectShop, onDeselect }: { shop: ShopWithMall, allShops: ShopWithMall[], onSelectShop: (shop: ShopWithMall) => void, onDeselect: () => void }) {
     const similarShops = allShops.filter(s => s.category === shop.category && s.id !== shop.id).slice(0, 3);
     
     return (
         <motion.div
+            layout
             key={shop.id}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -60,8 +61,12 @@ function ShopDetails({ shop, allShops, onSelectShop }: { shop: ShopWithMall, all
             transition={{ duration: 0.3, ease: 'easeInOut' }}
             className="sticky top-24"
         >
-            <Card className="shadow-xl">
-                <CardHeader className="text-center items-center">
+            <Card className="shadow-xl relative">
+                <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8 rounded-full" onClick={onDeselect}>
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Close</span>
+                </Button>
+                <CardHeader className="text-center items-center pt-8">
                     <Image src={shop.logoUrl} alt={`${shop.name} logo`} width={80} height={80} className="rounded-lg border mb-2" />
                     <CardTitle className="text-2xl font-bold font-headline">{shop.name}</CardTitle>
                     <p className="text-muted-foreground">{shop.mallName} - {shop.floor}</p>
@@ -134,7 +139,7 @@ function FindShopsPageComponent() {
     const [selectedShop, setSelectedShop] = useState<ShopWithMall | null>(null);
 
     const mallsInProvince = useMemo(() => {
-        if (selectedProvince === 'ALL') return MALLS; // Show all malls if no province is selected
+        if (selectedProvince === 'ALL') return MALLS;
         return MALLS.filter(mall => mall.province === selectedProvince);
     }, [selectedProvince]);
 
@@ -227,9 +232,13 @@ function FindShopsPageComponent() {
                         </CardContent>
                     </Card>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                         {/* Shops List */}
-                        <div className="lg:col-span-2 space-y-4">
+                        <motion.div 
+                            layout 
+                            className={`${selectedShop ? 'lg:col-span-1' : 'lg:col-span-2'} space-y-4`}
+                            transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        >
                              {filteredShops.length > 0 ? (
                                 <AnimatePresence>
                                     {filteredShops.map((shop) => (
@@ -247,20 +256,29 @@ function FindShopsPageComponent() {
                                     <p className="text-muted-foreground">No shops found matching your criteria.</p>
                                 </div>
                              )}
-                        </div>
+                        </motion.div>
 
                         {/* Details Column */}
-                        <div className="relative">
+                        <motion.div 
+                            layout
+                            className={`${selectedShop ? 'lg:col-span-2' : 'lg:col-span-1'} relative`}
+                            transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        >
                             <AnimatePresence>
                                 {selectedShop ? (
-                                    <ShopDetails shop={selectedShop} allShops={filteredShops} onSelectShop={setSelectedShop} />
+                                    <ShopDetails 
+                                        shop={selectedShop} 
+                                        allShops={filteredShops} 
+                                        onSelectShop={setSelectedShop}
+                                        onDeselect={() => setSelectedShop(null)}
+                                    />
                                 ) : (
                                     <div className="sticky top-24 text-center py-16 bg-background rounded-lg border-dashed border-2 flex flex-col items-center justify-center">
                                         <p className="text-muted-foreground">Select a shop to see details.</p>
                                     </div>
                                 )}
                             </AnimatePresence>
-                        </div>
+                        </motion.div>
                     </div>
                 </div>
             </main>
@@ -276,5 +294,3 @@ export default function FindShopsPage() {
         </Suspense>
     )
 }
-
-    
