@@ -11,7 +11,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Clock, Loader2, Mail, Phone, ShoppingBag, Link as LinkIcon, Calendar, Home } from 'lucide-react';
@@ -77,39 +76,30 @@ export default function ResolvedInquiriesPage() {
             </div>
           ) : (
             <ScrollArea className="h-[60vh]">
-              <div className="space-y-4 pr-6">
+              <div className="space-y-3 pr-6">
                 {resolved.map(sub => (
-                  <Card key={sub.id} className="bg-muted/50">
-                    <CardHeader>
-                        <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                                <CardTitle className="text-base font-semibold leading-tight flex items-center gap-2">
-                                    <SubmissionTypeIcon type={sub.submissionType} />
-                                    <span className="capitalize">{sub.submissionType} Submission</span>
-                                </CardTitle>
-                                <p className="text-xs text-muted-foreground pt-1">
-                                    from {sub.name}
-                                </p>
+                  <Card key={sub.id} className="bg-muted/50 p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="flex-1 space-y-1">
+                            <div className="flex items-center gap-2 font-semibold">
+                                <SubmissionTypeIcon type={sub.submissionType} />
+                                <span className="capitalize">{sub.submissionType} Submission</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground italic line-clamp-2">
+                                &quot;{sub.notes}&quot;
+                            </p>
+                        </div>
+                        <div className="flex-shrink-0 flex flex-col sm:items-end sm:text-right gap-1 text-sm">
+                           <div className="flex items-center gap-2">
+                                <Mail className="h-4 w-4 text-muted-foreground"/>
+                                <span>{sub.name} ({sub.email})</span>
+                           </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                Submitted {sub.submittedAt ? formatDistanceToNow(sub.submittedAt.toDate(), { addSuffix: true }) : 'a while ago'}
                             </div>
                         </div>
-                        <div className="text-sm text-muted-foreground pt-3 space-y-2">
-                           <a href={`mailto:${sub.email}`} className="flex items-center gap-2 hover:text-primary">
-                                <Mail className="h-4 w-4 flex-shrink-0" /> {sub.email}
-                            </a>
-                            {sub.phone && (
-                                <a href={`tel:${sub.phone}`} className="flex items-center gap-2 hover:text-primary">
-                                    <Phone className="h-4 w-4 flex-shrink-0" /> {sub.phone}
-                                </a>
-                            )}
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                         <p className="text-sm italic">&quot;{sub.notes}&quot;</p>
-                    </CardContent>
-                     <CardFooter className="justify-start text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3 mr-1.5" />
-                        Submitted {sub.submittedAt ? formatDistanceToNow(sub.submittedAt.toDate(), { addSuffix: true }) : 'a while ago'}
-                    </CardFooter>
+                    </div>
                   </Card>
                 ))}
               </div>
@@ -120,5 +110,3 @@ export default function ResolvedInquiriesPage() {
     </div>
   );
 }
-
-    
