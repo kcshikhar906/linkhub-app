@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { type SubmittedContact, submissionConverter } from '@/lib/data';
@@ -23,6 +23,8 @@ export default function ResolvedInquiriesPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  const [inquiryFilter, setInquiryFilter] = useState<'all' | 'service' | 'shop' | 'event'>('all');
+
   useEffect(() => {
     const q = query(
       collection(db, 'submissions'),
@@ -37,6 +39,14 @@ export default function ResolvedInquiriesPage() {
 
     return () => unsubscribe();
   }, []);
+
+  const filteredResolved = useMemo(() => {
+    if (inquiryFilter === 'all') {
+      return resolved;
+    }
+    return resolved.filter(sub => sub.submissionType === inquiryFilter);
+  }, [resolved, inquiryFilter]);
+
 
   const SubmissionTypeIcon = ({ type }: { type: SubmittedContact['submissionType']}) => {
     switch (type) {
@@ -64,20 +74,26 @@ export default function ResolvedInquiriesPage() {
           <CardDescription>
             A historical record of all submissions that have been marked as resolved.
           </CardDescription>
+          <div className="flex items-center gap-2 pt-4">
+              <Button variant={inquiryFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setInquiryFilter('all')}>All</Button>
+              <Button variant={inquiryFilter === 'service' ? 'default' : 'outline'} size="sm" onClick={() => setInquiryFilter('service')}>Services</Button>
+              <Button variant={inquiryFilter === 'shop' ? 'default' : 'outline'} size="sm" onClick={() => setInquiryFilter('shop')}>Shops</Button>
+              <Button variant={inquiryFilter === 'event' ? 'default' : 'outline'} size="sm" onClick={() => setInquiryFilter('event')}>Events</Button>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="flex justify-center items-center py-10">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : resolved.length === 0 ? (
+          ) : filteredResolved.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground">
-              <p>No inquiries have been resolved yet.</p>
+              <p>No resolved inquiries match your filter.</p>
             </div>
           ) : (
             <ScrollArea className="h-[60vh]">
               <div className="space-y-3 pr-6">
-                {resolved.map(sub => (
+                {filteredResolved.map(sub => (
                   <Card key={sub.id} className="bg-muted/50 p-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div className="flex-1 space-y-1">
