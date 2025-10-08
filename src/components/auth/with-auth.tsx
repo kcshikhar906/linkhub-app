@@ -6,8 +6,8 @@ import { useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// IMPORTANT: Replace with your actual admin User ID from Firebase Auth
-const ADMIN_UID = "Gz2nLtgMrchgprKNancZmSa5NQl1"; 
+// The admin UID is now read from environment variables for better security
+const ADMIN_UID = process.env.NEXT_PUBLIC_ADMIN_UID;
 
 const withAuth = <P extends object>(Component: React.ComponentType<P>) => {
   const AuthComponent = (props: P) => {
