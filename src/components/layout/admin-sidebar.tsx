@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -13,6 +14,7 @@ import {
   Settings,
   Layers,
   Upload,
+  Archive,
 } from 'lucide-react';
 
 import {
@@ -31,6 +33,7 @@ const adminNavLinks = [
   { href: '/admin/manage-links', label: 'Manage Links', icon: Link2 },
   { href: '/admin/manage-categories', label: 'Manage Categories', icon: Layers },
   { href: '/admin/bulk-import', label: 'Bulk Import', icon: Upload },
+  { href: '/admin/resolved-inquiries', label: 'Resolved Inquiries', icon: Archive },
 ];
 
 export function AdminSidebar() {
@@ -116,3 +119,5 @@ export function AdminSidebar() {
     </TooltipProvider>
   );
 }
+
+    

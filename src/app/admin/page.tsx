@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useAuth } from '@/context/auth-context';
@@ -33,7 +34,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Check, Trash2, Loader2, Link as LinkIcon, Layers, FileClock, AlertCircle, Edit, Clock, Pencil, Mail, Phone, ShoppingBag, Calendar, User, Building, Home } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, doc, deleteDoc, updateDoc, query, orderBy, getCountFromServer, where } from 'firebase/firestore';
 import {
@@ -66,6 +67,15 @@ function AdminPage() {
   
   const [isReportsDialogOpen, setIsReportsDialogOpen] = useState(false);
   const [viewingReports, setViewingReports] = useState<{serviceTitle: string; serviceId: string; reports: ReportedLink[] } | null>(null);
+
+  const [inquiryFilter, setInquiryFilter] = useState<'all' | 'service' | 'shop' | 'event'>('all');
+
+  const filteredSubmissions = useMemo(() => {
+    if (inquiryFilter === 'all') {
+      return submissions;
+    }
+    return submissions.filter(sub => sub.submissionType === inquiryFilter);
+  }, [submissions, inquiryFilter]);
   
   useEffect(() => {
     if (!user) return;
@@ -248,20 +258,30 @@ function AdminPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Pending Inquiries</CardTitle>
-          <CardDescription>
-            {loadingSubmissions ? 'Loading inquiries...' : 
-                submissions.length > 0
-              ? 'Review new submissions for services, shops, and events.'
-              : 'There are no pending inquiries.'}
-          </CardDescription>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                    <CardTitle>Pending Inquiries</CardTitle>
+                    <CardDescription>
+                        {loadingSubmissions ? 'Loading inquiries...' : 
+                            submissions.length > 0
+                        ? 'Review new submissions for services, shops, and events.'
+                        : 'There are no pending inquiries.'}
+                    </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button variant={inquiryFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setInquiryFilter('all')}>All</Button>
+                    <Button variant={inquiryFilter === 'service' ? 'default' : 'outline'} size="sm" onClick={() => setInquiryFilter('service')}>Services</Button>
+                    <Button variant={inquiryFilter === 'shop' ? 'default' : 'outline'} size="sm" onClick={() => setInquiryFilter('shop')}>Shops</Button>
+                    <Button variant={inquiryFilter === 'event' ? 'default' : 'outline'} size="sm" onClick={() => setInquiryFilter('event')}>Events</Button>
+                </div>
+            </div>
         </CardHeader>
         <CardContent>
           {loadingSubmissions ? (
             <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground"/></div>
           ) : (
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {submissions.map((sub) => (
+                {filteredSubmissions.map((sub) => (
                     <Card key={sub.id} className="flex flex-col">
                         <CardHeader>
                             <div className="flex items-start justify-between">
@@ -437,5 +457,6 @@ function AdminPage() {
 }
 
 export default AdminPage;
+
 
     
