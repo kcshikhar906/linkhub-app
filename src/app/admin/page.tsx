@@ -22,6 +22,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Check, Trash2, Loader2, Link as LinkIcon, Layers, FileClock, AlertCircle, Edit, Clock, Pencil, Mail, Phone, ShoppingBag, Calendar, User, Building, Home } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -429,3 +437,5 @@ function AdminPage() {
 }
 
 export default AdminPage;
+
+    
